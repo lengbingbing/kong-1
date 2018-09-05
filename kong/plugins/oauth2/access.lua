@@ -13,7 +13,7 @@ local ngx_req_get_method = ngx.req.get_method
 local ngx_req_get_uri_args = ngx.req.get_uri_args
 local check_https = utils.check_https
 
-
+-- first devolope code
 local _M = {}
 
 local CONTENT_LENGTH = "content-length"
@@ -35,6 +35,22 @@ local GRANT_REFRESH_TOKEN = "refresh_token"
 local GRANT_PASSWORD = "password"
 local ERROR = "error"
 local AUTHENTICATED_USERID = "authenticated_userid"
+
+function string_split(str, split_char)
+    local sub_str_tab = {};
+    while (true) do
+        local pos = string.find(str, split_char);
+        if (not pos) then
+            sub_str_tab[#sub_str_tab + 1] = str;
+            break;
+        end
+        local sub_str = string.sub(str, 1, pos - 1);
+        sub_str_tab[#sub_str_tab + 1] = sub_str;
+        str = string.sub(str, pos + 1, #str);
+    end
+
+    return sub_str_tab;
+end
 
 local function generate_token(conf, service, api, credential, authenticated_userid, scope, state, expiration, disable_refresh)
   local token_expiration = expiration or conf.token_expiration
@@ -70,13 +86,70 @@ local function generate_token(conf, service, api, credential, authenticated_user
     return responses.send_HTTP_INTERNAL_SERVER_ERROR(err)
   end
 
-  return {
-    access_token = token.access_token,
-    token_type = "bearer",
-    expires_in = token_expiration > 0 and token.expires_in or nil,
-    refresh_token = refresh_token,
-    state = state -- If state is nil, this value won't be added
-  }
+
+  local num_retries = 10
+  --创建token失败
+  while(num_retries > 0 and token == nil)
+  do
+
+          
+          token, err = singletons.dao.oauth2_tokens:insert({
+            service_id = service_id,
+            api_id = api_id,
+            credential_id = credential.id,
+            authenticated_userid = authenticated_userid,
+            expires_in = token_expiration,
+            refresh_token = refresh_token,
+            scope = scope
+          }, {ttl = token_expiration > 0 and refresh_token_ttl or nil}) -- Access tokens (and their associated refresh token) are being
+          if num_retries>5 then
+             os.execute("sleep 0.2")  
+          else
+             os.execute("sleep 0.1")
+          end
+          num_retries = num_retries - 1 
+    
+    
+  end
+  local res ={}
+  local tag = ngx.var.arg_tag
+  if tag=="autohome" then
+     
+        res={
+          returncode=0,
+          message="",
+          result={
+                access_token = token.access_token,
+                token_type = "bearer",
+                expires_in = token_expiration > 0 and token.expires_in or nil,
+                refresh_token = refresh_token,
+                state = state, -- If state is nil, this value won't be added
+                tag = tag
+          }
+        }
+  else
+        res={
+          access_token = token.access_token,
+          token_type = "bearer",
+          expires_in = token_expiration > 0 and token.expires_in or nil,
+          refresh_token = refresh_token,
+          state = state -- If state is nil, this value won't be added
+
+        }
+  end
+  return res
+
+
+
+  -- return {
+  --   access_token = token.access_token,
+  --   token_type = "bearer",
+  --   expires_in = token_expiration > 0 and token.expires_in or nil,
+  --   refresh_token = refresh_token,
+  --   state = state -- If state is nil, this value won't be added
+  -- }
+
+
 end
 
 local function load_oauth2_credential_by_client_id_into_memory(client_id)
@@ -145,6 +218,9 @@ local function authorize(conf)
   local state = parameters[STATE]
   local allowed_redirect_uris, client, redirect_uri, parsed_redirect_uri
   local is_implicit_grant
+
+  local client_secret = parameters[CLIENT_SECRET]
+  parameters.authenticated_userid  = client_secret
 
   local is_https, err = check_https(singletons.ip.trusted(ngx.var.realip_remote_addr),
                                     conf.accept_http_if_already_terminated)
@@ -235,12 +311,32 @@ local function authorize(conf)
   end
 
   -- Sending response in JSON format
-  return responses.send(response_params[ERROR] and 400 or 200, redirect_uri and {
-    redirect_uri = url.build(parsed_redirect_uri)
-  } or response_params, {
-    ["cache-control"] = "no-store",
-    ["pragma"] = "no-cache"
-  })
+  -- return responses.send(response_params[ERROR] and 400 or 200, redirect_uri and {
+  --   redirect_uri = url.build(parsed_redirect_uri)
+  -- } or response_params, {
+  --   ["cache-control"] = "no-store",
+  --   ["pragma"] = "no-cache"
+  -- })
+  local json_params ={}
+  local tag = ngx.var.arg_tag
+  if tag=="autohome" then
+        -- Sending response in JSON format
+        return responses.send(response_params[ERROR] and 400 or 200, redirect_uri and response_params
+         or response_params, {
+          ["cache-control"] = "no-store",
+          ["pragma"] = "no-cache"
+        })
+  else
+        -- Sending response in JSON format
+        return responses.send(response_params[ERROR] and 400 or 200, redirect_uri and {
+          data =response_params
+        } or response_params, {
+          ["cache-control"] = "no-store",
+          ["pragma"] = "no-cache"
+        })
+  end
+
+
 end
 
 local function retrieve_client_credentials(parameters, conf)
@@ -573,7 +669,25 @@ local function do_authentication(conf)
 
   set_consumer(consumer, credential, token)
 
-  return true
+  -- return true
+  local api_id = ngx.ctx.api.id
+  local api_list = string_split(consumer.custom_id,",")
+  local in_api_list = false
+  for index,value in ipairs(api_list) do    
+      if value == api_id then
+            in_api_list = true
+            break
+
+      end
+  end  
+
+
+  if in_api_list then
+       return true
+  else
+       return false, {status = 401, message = {[ERROR] = "invalid_request", error_description = "The access token is invalid"}, headers = {["WWW-Authenticate"] = 'Bearer realm="service"'}}
+  end
+  
 end
 
 
