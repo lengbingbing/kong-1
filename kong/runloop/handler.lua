@@ -18,7 +18,7 @@ local constants   = require "kong.constants"
 local responses   = require "kong.tools.responses"
 local singletons  = require "kong.singletons"
 local certificate = require "kong.runloop.certificate"
-
+local autoregister= require('kong.openapi.AutoRegister')
 
 local kong        = kong
 local tostring    = tostring
@@ -481,7 +481,12 @@ return {
       if not match_t then
         match_t = api_router.exec(ngx)
         if not match_t then
-          return responses.send_HTTP_NOT_FOUND("no route and no API found with those values")
+             match_t= autoregister.reg()
+             if match_t ==nil then
+                  return responses.send_HTTP_NOT_FOUND(match_t)
+             end
+            
+         
         end
       end
 
@@ -592,6 +597,16 @@ return {
       var.upstream_scheme = match_t.upstream_scheme
       var.upstream_uri    = match_t.upstream_uri
       var.upstream_host   = match_t.upstream_host
+
+
+      local flag = ngx.var.abtesthost
+      if flag~='default' then
+        balancer_address.host = ngx.var.abtesthost
+        var.upstream_host = ngx.var.abtesthost
+        var.upstream_uri = ngx.var.abtesturis
+      end
+      ctx.balancer_address = balancer_address
+      
 
       -- Keep-Alive and WebSocket Protocol Upgrade Headers
       if var.http_upgrade and lower(var.http_upgrade) == "websocket" then

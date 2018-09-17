@@ -38,6 +38,9 @@ lua_shared_dict kong_healthchecks   5m;
 lua_shared_dict kong_rate_limiting_counters 12m;
 > if database == "cassandra" then
 lua_shared_dict kong_cassandra      5m;
+lua_shared_dict static_config_cache 100m;
+lua_shared_dict static_cache 300m;
+lua_shared_dict my_limit_req_store 100m;
 > end
 lua_socket_log_errors off;
 > if lua_ssl_trusted_certificate then
@@ -114,7 +117,7 @@ server {
 
     location / {
         default_type                     '';
-
+        resolver 8.8.8.8;
         set $ctx_ref                     '';
         set $upstream_host               '';
         set $upstream_upgrade            '';
@@ -125,7 +128,8 @@ server {
         set $upstream_x_forwarded_proto  '';
         set $upstream_x_forwarded_host   '';
         set $upstream_x_forwarded_port   '';
-
+        set $abtesthost 'default';
+        set $abtesturis 'default';
         rewrite_by_lua_block {
             Kong.rewrite()
         }
@@ -164,7 +168,7 @@ server {
     location = /kong_error_handler {
         internal;
         uninitialized_variable_warn off;
-
+        resolver 8.8.8.8;
         content_by_lua_block {
             Kong.handle_error()
         }
@@ -180,6 +184,57 @@ server {
         log_by_lua_block {
             Kong.log()
         }
+    }
+
+    location = /fallback_dispose {
+        resolver 8.8.8.8;
+        content_by_lua_block {
+             local openapi_error_handlers = require "kong.openapi.ErrorHandlers"
+             openapi_error_handlers.fallback_dispose()
+        }
+    }
+    location = /outputdata {
+
+        resolver 8.8.8.8;
+        content_by_lua_block {
+            local trafficCache = require "kong.openapi.TrafficCache"
+            trafficCache.writeCache()
+        }
+
+        header_filter_by_lua_block {
+            local request_args_tab = ngx.req.get_uri_args()
+            ngx.header["openapi_cache"] = request_args_tab.cache
+            ngx.header["bottom_data"] = request_args_tab.bottom
+            ngx.header["original_status"] = request_args_tab.status
+            ngx.header["upstreamurl"] = request_args_tab.upstreamurl
+           
+        }
+    }
+    location = /test {
+       resolver 8.8.8.8;
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            local res, err = httpc:request_uri("http://www.baidu.com", {
+            method = "GET",
+           
+            headers = {
+              ["Content-Type"] = "application/x-www-form-urlencoded",
+              ["Host"] = "baidu.com",
+            },
+            keepalive_timeout = 60,
+            keepalive_pool = 10
+          })
+
+          if not res then
+                ngx.say("failed to request: ", err)
+                return
+          else
+                 ngx.say("failed to request: ",  res.status)
+          end
+
+      }
+           
     }
 }
 > end

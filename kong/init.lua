@@ -27,7 +27,7 @@
 require "luarocks.loader"
 require "resty.core"
 local constants = require "kong.constants"
-
+local openapi_error_handlers = require "kong.openapi.ErrorHandlers"
 do
   -- let's ensure the required shared dictionaries are
   -- declared via lua_shared_dict in the Nginx conf
@@ -227,6 +227,10 @@ function Kong.init_worker()
   -- and in the init_worker phase, to avoid duplicated
   -- seeds.
   math.randomseed()
+
+  local config = require("kong.openapi.Config");
+  config:new()
+  config:loadConfig()
 
   -- init DAO
 
@@ -542,8 +546,13 @@ function Kong.handle_error()
       -- just build list of plugins
     end
   end
-
-  return kong_error_handlers(ngx)
+  local res, jump_url = openapi_error_handlers.buildJumpParms()
+  if res then
+        return ngx.redirect(jump_url) 
+      else
+         return kong_error_handlers(ngx)
+   end
+ 
 end
 
 function Kong.serve_admin_api(options)
