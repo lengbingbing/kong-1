@@ -83,7 +83,9 @@ function TrafficHandler:access(config)
                           --读取到配置信息
                           if(upstream_config_data~=nil) then
                                   local cache = open_api_cache:new();
-                                  local save_cache_res = cache:setCache(upstream_config_data.domain,upstream_config_data.cacheMinute)
+                                   -- local save_cache_res = cache:setCache(upstream_config_data.domain,upstream_config_data.cacheMinute)
+
+
 
                                   -- 按百分比返回缓存数据
                                   if upstream_config_data.separateType==2 then 
@@ -146,7 +148,7 @@ end
 
 function TrafficHandler:header_filter(config)
 
-    TrafficHandler.super.header_filter(self)
+   TrafficHandler.super.header_filter(self)
 
 end
 
@@ -157,9 +159,28 @@ function TrafficHandler:body_filter(conf)
 end
 
 function TrafficHandler:log(config)
+   
 
-    TrafficHandler.super.log(self)
+                local request_method = ngx.var.request_method
 
+                -- 添加判断、只处理GET 请求
+                if request_method=='GET' then
+                          local open_api_config = require("kong.openapi.Config");
+                          local config =  open_api_config:new()
+                          local upstream_config_data = config:getUpstaremTrafficConfig()
+                          -- 缓冲数据到文件中
+                          
+                          --读取到配置信息
+                          if(upstream_config_data~=nil) then
+                                  local cache = open_api_cache:new();
+                                  local save_cache_res = cache:setCacheByLog(upstream_config_data.domain,ngx.var.resp_body,upstream_config_data.cacheMinute)
+                          else
+
+                                  utils.writeCacheLog("getUpstaremTrafficConfig " .. string.format("%s",'no data' )) 
+                          end
+
+                end
+                TrafficHandler.super.log(self)
 
 end
 

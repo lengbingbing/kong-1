@@ -22,6 +22,9 @@ error_log ${{PROXY_ERROR_LOG}} ${{LOG_LEVEL}};
 client_max_body_size ${{CLIENT_MAX_BODY_SIZE}};
 proxy_ssl_server_name on;
 underscores_in_headers on;
+fastcgi_intercept_errors on;
+proxy_intercept_errors on;
+
 
 lua_package_path '${{LUA_PACKAGE_PATH}};;';
 lua_package_cpath '${{LUA_PACKAGE_CPATH}};;';
@@ -73,14 +76,16 @@ upstream kong_upstream {
 }
 
 server {
+    large_client_header_buffers 4 16k;
     server_name kong;
+    resolver 8.8.8.8 192.168.252.24 192.168.252.25 ;
 > for i = 1, #proxy_listeners do
     listen $(proxy_listeners[i].listener);
 > end
     error_page 400 404 408 411 412 413 414 417 494 /kong_error_handler;
     error_page 500 502 503 504 /kong_error_handler;
 
-    access_log ${{PROXY_ACCESS_LOG}};
+    access_log ${{PROXY_ACCESS_LOG}} ;
     error_log ${{PROXY_ERROR_LOG}} ${{LOG_LEVEL}};
 
     client_body_buffer_size ${{CLIENT_BODY_BUFFER_SIZE}};
@@ -115,9 +120,10 @@ server {
     $(el.name) $(el.value);
 > end
 
+
     location / {
         default_type                     '';
-        resolver 8.8.8.8;
+        
         set $ctx_ref                     '';
         set $upstream_host               '';
         set $upstream_upgrade            '';
@@ -157,10 +163,17 @@ server {
         }
 
         body_filter_by_lua_block {
+            local resp_body = string.sub(ngx.arg[1], 1, 1000)
+            ngx.ctx.buffered = (ngx.ctx.buffered or "") .. resp_body
+            if ngx.arg[2] then
+                ngx.var.resp_body = ngx.ctx.buffered
+            end
             Kong.body_filter()
         }
 
         log_by_lua_block {
+
+
             Kong.log()
         }
     }
@@ -187,7 +200,7 @@ server {
     }
 
     location = /fallback_dispose {
-        resolver 8.8.8.8;
+       
         content_by_lua_block {
              local openapi_error_handlers = require "kong.openapi.ErrorHandlers"
              openapi_error_handlers.fallback_dispose()
@@ -195,7 +208,7 @@ server {
     }
     location = /outputdata {
 
-        resolver 8.8.8.8;
+       
         content_by_lua_block {
             local trafficCache = require "kong.openapi.TrafficCache"
             trafficCache.writeCache()
@@ -211,30 +224,22 @@ server {
         }
     }
     location = /test {
-       resolver 8.8.8.8;
-        content_by_lua_block {
-            local http = require "resty.http"
-            local httpc = http.new()
-            local res, err = httpc:request_uri("http://www.baidu.com", {
-            method = "GET",
-           
-            headers = {
-              ["Content-Type"] = "application/x-www-form-urlencoded",
-              ["Host"] = "baidu.com",
-            },
-            keepalive_timeout = 60,
-            keepalive_pool = 10
-          })
+    set $resp_body "";
+    lua_need_request_body on;
+        proxy_pass http://uc-config-demo.msapi.autohome.com.cn/test/fail;
+         body_filter_by_lua_block {
+            local resp_body = string.sub(ngx.arg[1], 1, 1000)
+            ngx.ctx.buffered = (ngx.ctx.buffered or "") .. resp_body
+            if ngx.arg[2] then
+                ngx.var.resp_body = ngx.ctx.buffered
+            end
 
-          if not res then
-                ngx.say("failed to request: ", err)
-                return
-          else
-                 ngx.say("failed to request: ",  res.status)
-          end
-
-      }
-           
+        }
+        log_by_lua_block {
+             ngx.log(ngx.CRIT, '---loglogloglogloglog-----')  
+             ngx.log(ngx.CRIT, ngx.var.resp_body)  
+                Kong.log()
+        }     
     }
 }
 > end

@@ -74,7 +74,7 @@ function openApiCache:fetch_upstream_data(request_uri,num_retries)
 		    headers = {
 		    	["scheme"] = "http",
 		    	["accept"] = "*/*",
-	
+	 			
 		    	-- ["accept-encoding"] = "gzip",
 		    	["cache-control"] = "no-cache",
 		    	["pragma"] = "no-cache",
@@ -151,7 +151,41 @@ function openApiCache:setCache(domain,minute)
 
 	
 end
+function openApiCache:setCacheByLog(domain,fetch_data,minute)	
 
+		local request_uri = ngx.var.request_uri
+		local uri = ngx.var.uri
+	   	local upstream_url =domain..request_uri
+	   	local host = utils.getHostName()
+	    local fileName = utils.getCacheName(host,request_uri)
+		local cache_name = self.cacheName
+		local num_retries = 3
+		local expire_in_second = 60*minute
+
+		local data = ngx.shared[cache_name]:get(fileName)
+		-- 判断缓存是否过期
+		if data == nill then 
+			utils.writeCacheLog( "ready setCacheByLog ,beging write file " ) 
+
+			--保存数据到本地文件
+		    local add_cache_flg = openApiCache:write(uri,fetch_data,fileName)
+		    --写文件成功后，保存缓存
+		    if(add_cache_flg) then
+				ngx.shared[cache_name]:set(fileName,fileName,expire_in_second)	
+				utils.writeCacheLog("set setCacheByLog success " .. string.format("%s",cache_name )) 
+				return true
+				
+			else
+				return false
+			end
+		else
+			--缓存未过期
+			utils.writeCacheLog( "hit setCacheByLog ,no write file " ) 
+			return true	
+		end
+
+	
+end
 
 -- @function: 读取缓冲数据，输出到客户端
 function openApiCache:getCache(domain,strategy,body)
