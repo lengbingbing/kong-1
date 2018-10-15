@@ -27,43 +27,20 @@ AutoRegister = {}
 -- @param: url
 -- @return: true or false
 local function check_url_exists(request_uri,num_retries)
-    utils.writeAutoRegLog(" start fetch " .. request_uri)    
-    local http = require "resty.http"
-    local httpc = http.new()
-    httpc:set_timeout(1000)
-    local res, err = nil
-    while(num_retries > 0 and res == nil)
-    do
-        utils.writeAutoRegLog( "try request_uri" .. request_uri)
-        res, err = httpc:request_uri(request_uri, {
-            method = "GET",   
-            headers = {
-                ["scheme"] = "http",
-                ["accept"] = "*/*",
-                -- ["accept-encoding"] = "gzip",
-                ["cache-control"] = "no-cache",
-                ["pragma"] = "no-cache",
-            } ,            
-        })
-        if res == nil then 
-           return nil
-        end
-        utils.writeAutoRegLog("res.status="..res.status)
-        if res.status == 404 or  res.status ==302 then 
-              res = nil
-              break
-        end
-        num_retries = num_retries - 1 
-        utils.writeAutoRegLog("num retries: " .. num_retries)
-  
-    end
+            utils.writeAutoRegLog(" start fetch " .. request_uri)    
+            local requests = require "resty.requests"
 
-    http:close()
-    if res == nil then 
-        return nil
-    end
-    return res.body
-
+            local r, err = requests.get(request_uri)
+            if not r then
+                utils.writeAutoRegLog(" err: " .. err)
+                return nil
+            end
+            if r.status_code~=404 then
+                local body = r:body()
+                return body
+            else
+                return nil
+            end
 
 end
 --获取路径

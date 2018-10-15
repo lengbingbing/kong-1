@@ -78,6 +78,8 @@ upstream kong_upstream {
 server {
     large_client_header_buffers 4 16k;
     server_name kong;
+    set $resp_body "";
+    lua_need_request_body on;
     resolver 8.8.8.8 192.168.252.24 192.168.252.25 ;
 > for i = 1, #proxy_listeners do
     listen $(proxy_listeners[i].listener);
@@ -224,8 +226,7 @@ server {
         }
     }
     location = /test {
-    set $resp_body "";
-    lua_need_request_body on;
+
         proxy_pass http://uc-config-demo.msapi.autohome.com.cn/test/fail;
          body_filter_by_lua_block {
             local resp_body = string.sub(ngx.arg[1], 1, 1000)
