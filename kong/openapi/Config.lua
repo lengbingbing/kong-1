@@ -18,9 +18,9 @@ config.cache.get = 1 --静态化仅开启get请求
 config.cache.path =  "/data/bigdata/kong/runtime/cache"
 config.consul.host = '10.23.27.87'
 config.consul.port = 80
-config.debug.auto_reg = false
-config.debug.cache = false
-config.debug.error_handler =false
+config.debug.auto_reg = true
+config.debug.cache = true
+config.debug.error_handler =true
 
 
 -- str是待分割的字符串 
