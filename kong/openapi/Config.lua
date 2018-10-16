@@ -8,19 +8,19 @@ config.cache = {}
 config.consul= {}
 config.debug={}
 config.cache.get = 1 --静态化仅开启get请求
-config.cache.path =  "/usr/local/opt/kong/runtime/cache"
-config.consul.host = '10.168.100.164'
-config.consul.port = 8500
-config.debug.auto_reg = true
-config.debug.cache = true
-config.debug.error_handler =true
+-- config.cache.path =  "/usr/local/opt/kong/runtime/cache"
+-- config.consul.host = '10.168.100.164'
+-- config.consul.port = 8500
+-- config.debug.auto_reg = true
+-- config.debug.cache = true
+-- config.debug.error_handler =true
 
--- config.cache.path =  "/data/bigdata/kong/runtime/cache"
--- config.consul.host = '10.23.27.87'
--- config.consul.port = 80
--- config.debug.auto_reg = false
--- config.debug.cache = false
--- config.debug.error_handler =false
+config.cache.path =  "/data/bigdata/kong/runtime/cache"
+config.consul.host = '10.23.27.87'
+config.consul.port = 80
+config.debug.auto_reg = false
+config.debug.cache = false
+config.debug.error_handler =false
 
 
 -- str是待分割的字符串 
