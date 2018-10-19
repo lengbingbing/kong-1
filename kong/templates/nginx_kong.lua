@@ -7,6 +7,26 @@ ${{SYSLOG_REPORTS}}
 
 error_log ${{PROXY_ERROR_LOG}} ${{LOG_LEVEL}};
 
+log_format main '{ "started_at": "$time_local", '
+'"remote_addr": "$remote_addr", '
+'"referer": "$http_referer", '
+'"request": "$request", '
+'"status": $status, '
+'"bytes": $body_bytes_sent, '
+'"agent": "$http_user_agent", '
+'"x_forwarded": "$http_x_forwarded_for", '
+'"up_addr": "$upstream_addr",'
+'"up_host": "$upstream_http_host",'
+'"up_resp_time": "$upstream_response_time",'
+'"openapi_cache": "$sent_http_openapi_cache",'
+'"bottom_data": "$sent_http_bottom_data",'
+'"original_status": "$sent_http_original_status",'
+'"upstreamurl": "$sent_http_upstreamurl",'
+'"circuit": "$sent_http_optype",'
+'"separate": "$sent_http_separate",'
+'"request_time": "$request_time"'
+' }';
+
 > if nginx_optimizations then
 >-- send_timeout 60s;          # default value
 >-- keepalive_timeout 75s;     # default value
@@ -87,7 +107,7 @@ server {
     error_page 400 404 408 411 412 413 414 417 494 /kong_error_handler;
     error_page 500 502 503 504 /kong_error_handler;
 
-    access_log ${{PROXY_ACCESS_LOG}} ;
+    access_log ${{PROXY_ACCESS_LOG}} main;
     error_log ${{PROXY_ERROR_LOG}} ${{LOG_LEVEL}};
 
     client_body_buffer_size ${{CLIENT_BODY_BUFFER_SIZE}};
