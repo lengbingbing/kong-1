@@ -35,7 +35,7 @@ function TrafficCache.writeCache()
      local uri = request_args_tab.uri
      local status = tonumber(request_args_tab.status)
      ngx.header["original_status"] = request_args_tab.status
-     ngx.header["upstreamurl"] = request_args_tab.upstreamurl
+     
      ngx.log(ngx.CRIT, 'optype='..optype)    
 
     if optype=='1' then

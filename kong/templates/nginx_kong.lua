@@ -163,6 +163,8 @@ server {
         }
 
         access_by_lua_block {
+            local request_args_tab = ngx.req.get_uri_args()
+            ngx.header["upstreamurl"] = request_args_tab.upstreamurl
             Kong.access()
         }
 
