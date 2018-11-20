@@ -201,10 +201,8 @@ local function inconformityRegData(domain,value)
                 end
                 
             else
-               local data = res.body[1].Value
-             
-               local save_data = data..','..value
-               utils.writeAutoRegLog('data='..save_data)
+               local save_data =tostring(res.status)
+               utils.writeAutoRegLog('status='..save_data)
                res, err = consul:put_key(key,save_data)
                if not res then
                   utils.writeAutoRegLog('writeAutoRegLog ='..err )
