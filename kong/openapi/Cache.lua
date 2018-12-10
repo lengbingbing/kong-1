@@ -43,12 +43,13 @@ function openApiCache:write( uri, content,filename )
 	local filePath = files:getFilePath(uri) ~= nil and files:getFilePath(uri) or uri;
 	filename = filename .. '.cache';
 	filePath = self.cachePath .. filePath
-	
 	files:mkdirs(filePath);
-	
 	files:write( helpers:rtrim( filePath, '/' ) .. '/' .. filename, content );
 	return true;
 end
+
+
+
 
 
 -- @function: 获取源站数据，默认重试3次
@@ -58,50 +59,23 @@ end
 function openApiCache:fetch_upstream_data(request_uri,num_retries)
 
 	utils.writeCacheLog(" start fetch " .. request_uri)	
-	local http = require "resty.http"
-	local httpc = http.new()
-	-- local args = ngx.req.get_uri_args();
-	httpc:set_timeout(1000)
-	local res, err = nil
-
-	while(num_retries > 0 and res == nil)
-	do
-		
-
-		res, err = httpc:request_uri(request_uri, {
-		    method = "GET",   
-		    -- body=args,
-		    headers = {
-		    	["scheme"] = "http",
-		    	["accept"] = "*/*",
-	 			
-		    	-- ["accept-encoding"] = "gzip",
-		    	["cache-control"] = "no-cache",
-		    	["pragma"] = "no-cache",
-			} ,            
-		})
-		num_retries = num_retries - 1 
-		if res == nil then 
-				 ngx.log(ngx.CRIT, '获取失败')	
+	local requests = require "resty.requests"
+	local res, err = requests.get(request_uri)
+	
+	if not res then
+				 ngx.log(ngx.CRIT, 'not res')	
+		else
+				
+				 if res.status_code == 200 then
+			  		local body = res:body()
+			  		
+			  		return body
+			  	 end
 		end
-
 		
-	end
-
-	http:close()
-
-	if res == nil then 
-		utils.writeCacheLog("fetch_upstream_data ,res is null" )
-		return nil
-	end
-	utils.writeCacheLog("res.status="..res.status )
-  	if res.status == 200 then
-  		
-  		return res.body
-  	else
-  		return nil
-  	end
-
+		
+	
+	return nil
 	
 end
 
@@ -115,7 +89,7 @@ function openApiCache:setCache(domain,minute)
 
 		local request_uri = ngx.var.request_uri
 		local uri = ngx.var.uri
-	   	local upstream_url =domain..request_uri
+	   	local upstream_url ="http://"..domain..request_uri
 	   	local host = utils.getHostName()
 	    local fileName = utils.getCacheName(host,request_uri)
 		local cache_name = self.cacheName
@@ -132,6 +106,7 @@ function openApiCache:setCache(domain,minute)
 				utils.writeCacheLog( "fetch_data is nill ,upstream_url="..upstream_url) 
 				return false
 			end
+
 			--保存数据到本地文件
 		    local add_cache_flg = openApiCache:write(uri,fetch_data,fileName)
 		    --写文件成功后，保存缓存

@@ -22,6 +22,8 @@ local open_api_cache = require "kong.openapi.Cache"
 local config = require("kong.openapi.Config");
 local utils = require "kong.openapi.Utils"
 
+
+
 TrafficCache = {}
 
 
@@ -39,9 +41,9 @@ function TrafficCache.writeCache()
      ngx.log(ngx.CRIT, 'optype='..optype)    
 
     if optype=='1' then
-                utils.writeCacheLog( " request_args_tab.upstreamurl="..decodeURI(request_args_tab.upstreamurl)) 
 
-                return ngx.exit(status)
+                ngx.say('value')
+                return ngx.exit(508)
      end
      --缓存
      if optype =='2' or optype =='5'  then
@@ -89,7 +91,7 @@ function TrafficCache:buildJumpParms(strategy,domain,body,status)
             local key = 'uc/openapi/config/upstreamurl/'..child_key
             if(strategy==1) then
                 jump_url = '/outputdata?optype=1'..'&status='..status..'&upstreamurl='..upstream_url
-                return true,jump_url
+                return false,nil
                             -- return false,nil
             end
             -- 缓存数据
@@ -168,6 +170,8 @@ end
 -- 跳转、输出缓存
 function TrafficCache:outputCacheData(strategy,domain,body,status)
         
+
+
       local res, jump_url = TrafficCache:buildJumpParms(strategy,domain,body,status)
 
       if res then
@@ -177,6 +181,8 @@ function TrafficCache:outputCacheData(strategy,domain,body,status)
       else
             return ngx.exit(status)
       end
+
+
 end
 --返回按百分比限流的数据
 function TrafficCache:outputPercentageCache(domain)

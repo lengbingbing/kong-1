@@ -162,12 +162,18 @@ server {
             Kong.rewrite()
         }
 
+        set $cocurrent '';
+        set $cocurrent_strategy '';
+        set $cocurrent_concurrency '';
+        set $cocurrent_remark '';
+        set $cache '';
+        set $cache_percentage '';
+        set $fault '';
+        set $fault_strategy '';
+
+
         access_by_lua_block {
-            local utils = require "kong.openapi.Utils"
-            local uri = ngx.var.uri
-            local host = utils.getHostName()
-            local upstream_url =host..uri
-            ngx.header["upstreamurl"] = upstream_url
+
             Kong.access()
         }
 
@@ -190,11 +196,7 @@ server {
         }
 
         body_filter_by_lua_block {
-            local resp_body = string.sub(ngx.arg[1], 1, 1000)
-            ngx.ctx.buffered = (ngx.ctx.buffered or "") .. resp_body
-            if ngx.arg[2] then
-                ngx.var.resp_body = ngx.ctx.buffered
-            end
+            
             Kong.body_filter()
         }
 
@@ -210,20 +212,11 @@ server {
         uninitialized_variable_warn off;
         resolver 8.8.8.8;
         content_by_lua_block {
+            ngx.log(ngx.CRIT, 'kong_error_handler--------------------') 
             Kong.handle_error()
         }
 
-        header_filter_by_lua_block {
-            Kong.header_filter()
-        }
 
-        body_filter_by_lua_block {
-            Kong.body_filter()
-        }
-
-        log_by_lua_block {
-            Kong.log()
-        }
     }
 
     location = /fallback_dispose {
@@ -233,40 +226,21 @@ server {
              openapi_error_handlers.fallback_dispose()
         }
     }
-    location = /outputdata {
 
-       
+   
+
+    location = /openapi/cocurrent {
+        internal;
+        uninitialized_variable_warn off;
+        resolver 8.8.8.8;
         content_by_lua_block {
-            local trafficCache = require "kong.openapi.TrafficCache"
-            trafficCache.writeCache()
-        }
-
-        header_filter_by_lua_block {
-            local request_args_tab = ngx.req.get_uri_args()
-            ngx.header["openapi_cache"] = request_args_tab.cache
-            ngx.header["bottom_data"] = request_args_tab.bottom
-            ngx.header["original_status"] = request_args_tab.status
-            ngx.header["upstreamurl"] = request_args_tab.upstreamurl
-           
-        }
+            Kong.writeData()
     }
-    location = /test {
 
-        proxy_pass http://uc-config-demo.msapi.autohome.com.cn/test/fail;
-         body_filter_by_lua_block {
-            local resp_body = string.sub(ngx.arg[1], 1, 1000)
-            ngx.ctx.buffered = (ngx.ctx.buffered or "") .. resp_body
-            if ngx.arg[2] then
-                ngx.var.resp_body = ngx.ctx.buffered
-            end
 
-        }
-        log_by_lua_block {
-             ngx.log(ngx.CRIT, '---loglogloglogloglog-----')  
-             ngx.log(ngx.CRIT, ngx.var.resp_body)  
-                Kong.log()
-        }     
+
     }
+   
 }
 > end
 

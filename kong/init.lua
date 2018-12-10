@@ -74,7 +74,7 @@ local plugins_iterator = require "kong.runloop.plugins_iterator"
 local balancer_execute = require("kong.runloop.balancer").execute
 local kong_cluster_events = require "kong.cluster_events"
 local kong_error_handlers = require "kong.error_handlers"
-
+local open_api_cache = require "kong.openapi.Cache"
 local ngx              = ngx
 local header           = ngx.header
 local ngx_log          = ngx.log
@@ -525,10 +525,10 @@ end
 
 function Kong.log()
   kong_global.set_phase(kong, PHASES.log)
-
+ 
   for plugin, plugin_conf in plugins_iterator(loaded_plugins) do
     kong_global.set_named_ctx(kong, "plugin", plugin_conf)
-    kong_global.set_namespaced_log(kong, plugin.name)
+    kong_global.set_namespaced_log(kong,    plugin.name)
 
     plugin.handler:log(plugin_conf)
 
@@ -538,9 +538,50 @@ function Kong.log()
   runloop.log.after(ngx.ctx)
 end
 
+function Kong.customLog()
+    
+      for plugin, plugin_conf in plugins_iterator(loaded_plugins, true) do
+          plugin.handler:log(plugin_conf)
+      end
+  
+ 
+end
+function Kong.writeData()
+     
+
+     local request_args_tab = ngx.req.get_uri_args()
+     local optype = request_args_tab.optype
+     local bottomJson = request_args_tab.bottomJson
+     local name = request_args_tab.name
+     local uri = request_args_tab.uri
+     if optype =='2'  then
+            local cache = open_api_cache:new();
+            local res =  cache:read(uri,name)
+           
+            if(res==false) then
+                 
+                 return ngx.exit(status)
+            else
+                --读取到缓存数据
+                for key, value in pairs(res) do  
+                ngx.say(value)
+                end 
+                return ngx.exit(200)
+            end
+            
+     end
+     --托底
+     if optype =='3' then
+        ngx.say(bottomJson)
+     end
+
+
+  
+     
+end
+
 function Kong.handle_error()
   kong_resty_ctx.apply_ref()
-
   if not ngx.ctx.plugins_for_request then
     for plugin, plugin_conf in plugins_iterator(loaded_plugins, true) do
       -- just build list of plugins

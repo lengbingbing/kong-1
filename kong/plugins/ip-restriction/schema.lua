@@ -16,7 +16,8 @@ end
 return {
   fields = {
     whitelist = {type = "array", func = validate_ips},
-    blacklist = {type = "array", func = validate_ips}
+    blacklist = {type = "array", func = validate_ips},
+    iswhite = {type = "boolean", default = true}
   },
   self_check = function(schema, plugin_t, dao, is_update)
     local wl = type(plugin_t.whitelist) == "table" and plugin_t.whitelist or {}

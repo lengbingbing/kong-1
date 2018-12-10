@@ -481,12 +481,8 @@ return {
       if not match_t then
         match_t = api_router.exec(ngx)
         if not match_t then
-             match_t= autoregister.reg()
-             if match_t ==nil then
-                  return responses.send_HTTP_NOT_FOUND(match_t)
-             end
-            
-         
+             return responses.send_HTTP_NOT_FOUND("no route and no API found with those values")
+ 
         end
       end
 

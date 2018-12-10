@@ -54,7 +54,7 @@ end
 
 function TcpLogHandler:log(conf)
   TcpLogHandler.super.log(self)
-
+   ngx.log(ngx.CRIT, 'TcpLogHandler---------------------------------------------------------------------------') 
   local message = basic_serializer.serialize(ngx)
   local ok, err = ngx.timer.at(0, log, conf, message)
   if not ok then

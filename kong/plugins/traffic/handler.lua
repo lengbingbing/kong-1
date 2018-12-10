@@ -1,5 +1,5 @@
 local BasePlugin = require "kong.plugins.base_plugin"
-local TrafficHandler = BasePlugin:extend()
+
 local cjson = require "cjson"
 local responses = require "kong.tools.responses"
 local cjson_decode = require("cjson").decode
@@ -15,6 +15,16 @@ local utils = require "kong.openapi.Utils"
 -- Your plugin handler's constructor. If you are extending the
 -- Base Plugin handler, it's only role is to instanciate itself
 -- with a name. The name is your plugin name as it will be printed in the logs.
+
+
+local TrafficHandler = BasePlugin:extend()
+
+
+TrafficHandler.PRIORITY = 5003
+TrafficHandler.VERSION = "0.1.0"
+
+
+
 function TrafficHandler:new()
   TrafficHandler.super.new(self, "my-custom-plugin")
 end
@@ -44,25 +54,7 @@ function TrafficHandler:rewrite(config)
   -- Implement any custom logic here
 end
 
-local function getIP()
-    local ClientIP = ngx.req.get_headers()["X-Real-IP"]
-    if ClientIP == nil then
-        ClientIP = ngx.req.get_headers()["X-Forwarded-For"]
-        if ClientIP then
-            local colonPos = string.find(ClientIP, ' ')
-            if colonPos then
-                ClientIP = string.sub(ClientIP, 1, colonPos - 1) 
-            end
-        end
-    end
-    if ClientIP == nil then
-        ClientIP = ngx.var.remote_addr
-    end
-    if ClientIP then 
-        ClientIP = ClientIP
-    end
-    return ClientIP
-end
+
 
 
 
@@ -75,72 +67,19 @@ function TrafficHandler:access(config)
 
                 -- 添加判断、只处理GET 请求
                 if request_method=='GET' then
-                          local open_api_config = require("kong.openapi.Config");
-                          local config =  open_api_config:new()
-                          local upstream_config_data = config:getUpstaremTrafficConfig()
-                          -- 缓冲数据到文件中
-                          
-                          --读取到配置信息
-                          if(upstream_config_data~=nil) then
-                                  local cache = open_api_cache:new();
-                                   -- local save_cache_res = cache:setCache(upstream_config_data.domain,upstream_config_data.cacheMinute)
-
-
-
-                                  -- 按百分比返回缓存数据
-                                  if upstream_config_data.separateType==2 then 
-                                          --是否按百分比走缓存数据
-                                          if(upstream_config_data.separateCachePercentage>0) then    
-                                             local count =  math.random(1,100)
-                                             utils.writeCacheLog( "count= " ..count) 
-                                             if count<= upstream_config_data.separateCachePercentage then
-                                                  utils.writeCacheLog( "output cache data ") 
-                                                  traffic_cache:outputPercentageCache(upstream_config_data.domain)
+                       --是否按百分比走缓存数据
+                       if(config.percentage>0) then    
+                            local count =  math.random(1,100)
+                            utils.writeCacheLog( "count= " ..count) 
+                            if count<= config.percentage then
+                                    utils.writeCacheLog( "output cache data ") 
+                                    traffic_cache:outputPercentageCache(config.domain)
                
-                                             end
+                            end
 
-                                          end
-                                  end
-
-                                  -- -- 并发限流
-                                  -- upstream_config_data.trafficStrategy   value=1 返回缓存数据 value=2 返回托底数据  
-                                  -- upstream_config_data.bottomJson        托底数据
-                                  if(upstream_config_data.trafficConcurrency>0 and upstream_config_data.trafficStrategy~=1) then
-                                        local limit_req = require "resty.limit.req"
-                                        local lim, err = limit_req.new("my_limit_req_store", upstream_config_data.trafficConcurrency, 1)
-                                        if not lim then --申请limit_req对象失败
-                                            --buildJumpParms(strategy,domain,body,status)
-                                            traffic_cache:outputCacheData(upstream_config_data.trafficStrategy,upstream_config_data.domain,upstream_config_data.bottomJson,500 )
-                                            utils.writeCacheLog("failed to instantiate a resty.limit.req object: ", err)
-                                            
-                                        end
-                                        -- 使用ip地址作为限流的key
-                                        local key = getIP()
-                                        local delay, err = lim:incoming(key, true)
-                                        if not delay then
-                                        if err == "rejected" then
-                                               ngx.log(ngx.ERR,"rejected")
-                                             --超时
-                                             traffic_cache:outputCacheData(upstream_config_data.trafficStrategy,upstream_config_data.domain,upstream_config_data.bottomJson,503 )
-
-                                        end
-                                            ngx.log(ngx.ERR,"not rejected")
-                                            traffic_cache:outputCacheData(upstream_config_data.trafficStrategy,upstream_config_data.domain,upstream_config_data.bottomJson,500 )
-
-                                        end
-                                        if delay~=nil and delay > 0 then
-                                              ngx.log(ngx.ERR,"delay")
-                                              
-                                              traffic_cache:outputCacheData(upstream_config_data.trafficStrategy,upstream_config_data.domain,upstream_config_data.bottomJson,500 )
-
-                                        end
-                                   end
-                                 
-
-                          else
-
-                                  utils.writeCacheLog("getUpstaremTrafficConfig " .. string.format("%s",'no data' )) 
-                          end
+                        end
+                              
+                   
 
                 end
 
@@ -159,28 +98,7 @@ function TrafficHandler:body_filter(conf)
 end
 
 function TrafficHandler:log(config)
-   
-
-                local request_method = ngx.var.request_method
-
-                -- 添加判断、只处理GET 请求
-                if request_method=='GET' then
-                          local open_api_config = require("kong.openapi.Config");
-                          local config =  open_api_config:new()
-                          local upstream_config_data = config:getUpstaremTrafficConfig()
-                          -- 缓冲数据到文件中
-                          
-                          --读取到配置信息
-                          if(upstream_config_data~=nil) then
-                                  local cache = open_api_cache:new();
-                                  local save_cache_res = cache:setCacheByLog(upstream_config_data.domain,ngx.var.resp_body,upstream_config_data.cacheMinute)
-                          else
-
-                                  utils.writeCacheLog("getUpstaremTrafficConfig " .. string.format("%s",'no data' )) 
-                          end
-
-                end
-                TrafficHandler.super.log(self)
+    TrafficHandler.super.log(self)
 
 end
 

@@ -39,6 +39,20 @@ function _M.serialize(ngx)
       proxy = ngx.ctx.KONG_WAITING_TIME or -1,
       request = ngx.var.request_time * 1000
     },
+    openapi={
+
+      cocurrent= ngx.var.cocurrent,
+      cocurrent_strategy= ngx.var.cocurrent_strategy,
+      cocurrent_concurrency= ngx.var.cocurrent_concurrency,
+      cocurrent_remark= ngx.var.cocurrent_remark,
+      cache= ngx.var.cache,
+      cache_percentage= ngx.var.cache_percentage,
+      fault= ngx.var.fault,
+      fault_strategy= ngx.var.fault_strategy,
+
+
+
+    },
     authenticated_entity = authenticated_entity,
     route = ngx.ctx.route,
     service = ngx.ctx.service,
