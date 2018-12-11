@@ -150,57 +150,42 @@ end
 ---
 -- @function: 读取配置，准备跳转参数
 -- @return: 
-function ErrorHandlers.buildJumpParms()
-        local headers = ngx.req.get_headers()  
-        local request_method = ngx.var.request_method
-        local jump_url = nil
-        local status = ngx.status
 
-       
-
-                utils.writeErrorHandlerLog( "request_method------------ "..request_method)
-                if request_method=='GET' then
+function ErrorHandlers.buildJumpParms(strategy,bottomJson)
 
 
-                        local request_uri = ngx.var.request_uri; 
-                        local uri = nil
-                        local args=nil
-                        local path_index = string.find(request_uri,'?')
-                        if(path_index~=nil) then
-                              uri =  string.sub(request_uri,1,path_index-1)
-                        else
-                              uri = request_uri
-                        end
-                        local host = utils.split(headers["Host"],":")[1];
-                        local upstream_url = host..uri
-                        local child_key =  string.gsub(upstream_url, "/", "-")
-                        local key = 'uc/openapi/config/upstreamurl/'..child_key
-                        utils.writeErrorHandlerLog("key------------ "..key)
-                        local cache_data = ngx.shared["static_config_cache"]:get(key);
-                        if cache_data ~= nil then
-
-                                local request_body = json_decode(cache_data)
-                                utils.writeErrorHandlerLog("有数据 request_body.trafficFail="..request_body.trafficFail)
+                                local headers = ngx.req.get_headers()  
+                                local host = utils.split(headers["Host"],":")[1];
+                               
+                                local request_uri = ngx.var.request_uri; 
+                                local uri = nil
+                                local args=nil
+                                local path_index = string.find(request_uri,'?')
+                                if(path_index~=nil) then
+                                      uri =  string.sub(request_uri,1,path_index-1)
+                                else
+                                      uri = request_uri
+                                end
+                                local upstream_url = host..uri
                                 ngx.var.fault = "true"                
-                                ngx.var.fault_strategy = request_body.trafficFail
+                                ngx.var.fault_strategy = strategy
                                 ngx.header["fault"]= ngx.var.fault
                                 ngx.header["fault_strategy"]= ngx.var.fault_strategy
                                 Kong = require 'kong'
                                 Kong.customLog()
                                 --返回源码
-                                if(request_body.trafficFail==1 or request_body.trafficFail=="1") then
+                                if(strategy==1 ) then
                                     -- jump_url = '/fallback_dispose?optype=1&upstreamurl='..upstream_url..'&status='..status
                                     -- utils.writeErrorHandlerLog( "jump_url------------ "..jump_url)
 
                                     return false,nil
                                 end
                                 -- 缓存数据
-                                if(request_body.trafficFail==2 or request_body.trafficFail=="2") then
+                                if(strategy==2) then
                                    
                                     local cachename = utils.getCacheName(host,request_uri)
                                     local cache = open_api_cache:new();
-                                    utils.writeErrorHandlerLog( "uri------------ "..uri)
-                                    utils.writeErrorHandlerLog( "cachename------------ "..cachename)
+                                   
 
                                     local data = ngx.shared["static_cache"]:get(cachename)
                                     -- 判断缓存是否过期
@@ -219,16 +204,17 @@ function ErrorHandlers.buildJumpParms()
 
                                 end
                                 -- 托底
-                                if(request_body.trafficFail==3 or request_body.trafficFail=="3") then
-                                    -- ngx.say(request_body.bottomJson)
-                                    local cachename = utils.getCacheName(host,request_uri)
+                                if(strategy==3 ) then
+                                   
+                                    
                                     -- jump_url = '/fallback_dispose?key='..key..'&optype=3'..'&status='..status..'&cache=false&bottom=true&upstreamurl='..upstream_url
 
-                                    jump_url = '/openapi/error?bottomJson='..request_body.bottomJson..'&optype=3'
+                                    jump_url = '/openapi/error?bottomJson='..bottomJson..'&optype=3'
+                                    
                                     return true,jump_url
                                 end
                       
-                                if(request_body.trafficFail==4 or request_body.trafficFail=="4") then
+                                if(strategy==4) then
                                     
                                     local cachename = utils.getCacheName(host,request_uri)
                                     local cache = open_api_cache:new();
@@ -237,7 +223,7 @@ function ErrorHandlers.buildJumpParms()
                                     if(res==false or data==nill) then
                                            
                                             -- jump_url = '/fallback_dispose?key='..key..'&optype=3'..'&status='..status..'&cache=false&bottom=true&upstreamurl='..upstream_url
-                                            jump_url = '/openapi/error?bottomJson='..request_body.bottomJson..'&optype=3'
+                                            jump_url = '/openapi/error?bottomJson='..bottomJson..'&optype=3'
                                             return true,jump_url
                                     else
 
@@ -249,14 +235,119 @@ function ErrorHandlers.buildJumpParms()
                          
 
                                 end
-                        end
+                        
                         
                       
 
-                end
-             
-        return false,jump_url
 end
+
+-- function ErrorHandlers.buildJumpParms(strategy,bottomJson)
+--         local headers = ngx.req.get_headers()  
+--         local request_method = ngx.var.request_method
+--         local jump_url = nil
+--         local status = ngx.status
+
+       
+
+--                 utils.writeErrorHandlerLog( "request_method------------ "..request_method)
+--                 if request_method=='GET' then
+
+
+--                         local request_uri = ngx.var.request_uri; 
+--                         local uri = nil
+--                         local args=nil
+--                         local path_index = string.find(request_uri,'?')
+--                         if(path_index~=nil) then
+--                               uri =  string.sub(request_uri,1,path_index-1)
+--                         else
+--                               uri = request_uri
+--                         end
+--                         local host = utils.split(headers["Host"],":")[1];
+--                         local upstream_url = host..uri
+--                         local child_key =  string.gsub(upstream_url, "/", "-")
+--                         local key = 'uc/openapi/config/upstreamurl/'..child_key
+--                         utils.writeErrorHandlerLog("key------------ "..key)
+--                         local cache_data = ngx.shared["static_config_cache"]:get(key);
+--                         if cache_data ~= nil then
+
+--                                 local request_body = json_decode(cache_data)
+--                                 utils.writeErrorHandlerLog("有数据 request_body.trafficFail="..request_body.trafficFail)
+--                                 ngx.var.fault = "true"                
+--                                 ngx.var.fault_strategy = request_body.trafficFail
+--                                 ngx.header["fault"]= ngx.var.fault
+--                                 ngx.header["fault_strategy"]= ngx.var.fault_strategy
+--                                 Kong = require 'kong'
+--                                 Kong.customLog()
+--                                 --返回源码
+--                                 if(request_body.trafficFail==1 or request_body.trafficFail=="1") then
+--                                     -- jump_url = '/fallback_dispose?optype=1&upstreamurl='..upstream_url..'&status='..status
+--                                     -- utils.writeErrorHandlerLog( "jump_url------------ "..jump_url)
+
+--                                     return false,nil
+--                                 end
+--                                 -- 缓存数据
+--                                 if(request_body.trafficFail==2 or request_body.trafficFail=="2") then
+                                   
+--                                     local cachename = utils.getCacheName(host,request_uri)
+--                                     local cache = open_api_cache:new();
+--                                     utils.writeErrorHandlerLog( "uri------------ "..uri)
+--                                     utils.writeErrorHandlerLog( "cachename------------ "..cachename)
+
+--                                     local data = ngx.shared["static_cache"]:get(cachename)
+--                                     -- 判断缓存是否过期
+--                                     if data == nill then 
+--                                          utils.writeErrorHandlerLog( "cachename------------过期 ")    
+--                                          return false,nil
+--                                     end
+--                                     local res =  cache:read(uri,cachename)
+--                                     if(res==false) then
+--                                         return false,nil
+--                                     else
+--                                         -- jump_url = '/fallback_dispose?name='..cachename..'&optype=2&key='..key..'&uri='..uri..'&status='..status..'&cache=true&bottom=false&upstreamurl='..upstream_url
+--                                         jump_url = '/openapi/error?name='..cachename..'&optype=2&uri='..uri
+--                                         return true,jump_url
+--                                     end
+
+--                                 end
+--                                 -- 托底
+--                                 if(request_body.trafficFail==3 or request_body.trafficFail=="3") then
+--                                     -- ngx.say(request_body.bottomJson)
+--                                     local cachename = utils.getCacheName(host,request_uri)
+--                                     -- jump_url = '/fallback_dispose?key='..key..'&optype=3'..'&status='..status..'&cache=false&bottom=true&upstreamurl='..upstream_url
+
+--                                     jump_url = '/openapi/error?bottomJson='..request_body.bottomJson..'&optype=3'
+--                                     return true,jump_url
+--                                 end
+                      
+--                                 if(request_body.trafficFail==4 or request_body.trafficFail=="4") then
+                                    
+--                                     local cachename = utils.getCacheName(host,request_uri)
+--                                     local cache = open_api_cache:new();
+--                                     local data = ngx.shared["static_cache"]:get(cachename)
+--                                     local res =  cache:read(uri,cachename)
+--                                     if(res==false or data==nill) then
+                                           
+--                                             -- jump_url = '/fallback_dispose?key='..key..'&optype=3'..'&status='..status..'&cache=false&bottom=true&upstreamurl='..upstream_url
+--                                             jump_url = '/openapi/error?bottomJson='..request_body.bottomJson..'&optype=3'
+--                                             return true,jump_url
+--                                     else
+
+
+--                                             -- jump_url = '/fallback_dispose?name='..cachename..'&optype=2&key='..key..'&uri='..uri..'&status='..status..'&cache=true&bottom=false&upstreamurl='..upstream_url
+--                                             jump_url = '/openapi/error?name='..cachename..'&optype=2&uri='..uri
+--                                             return true,jump_url
+--                                     end
+                         
+
+--                                 end
+--                         end
+                        
+                      
+
+--                 end
+             
+--         return false,jump_url
+-- end
 
 
  

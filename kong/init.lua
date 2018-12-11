@@ -615,19 +615,44 @@ end
 
 function Kong.handle_error()
   kong_resty_ctx.apply_ref()
-  if not ngx.ctx.plugins_for_request then
+  -- if not ngx.ctx.plugins_for_request then
+
+    local strategy = 0 
+    local bottomJson = nil 
+    local isConfigFault = false
     for plugin, plugin_conf in plugins_iterator(loaded_plugins, true) do
+
+      if plugin.name =='fault' then
+          bottomJson = plugin_conf.bottomJson
+          strategy = plugin_conf.strategy
+          isConfigFault = true
+          break
+      end
+
+      
       -- just build list of plugins
 
     end
-  end
-  local res, jump_url = openapi_error_handlers.buildJumpParms()
-  if res then
-        ngx.log(ngx.CRIT, '跳转='..jump_url) 
-        return ngx.redirect(jump_url) 
+
+    if isConfigFault then
+
+            local res, jump_url = openapi_error_handlers.buildJumpParms(strategy,bottomJson)
+            if res then
+                  
+                  return ngx.redirect(jump_url) 
+            else
+                
+                return kong_error_handlers(ngx)
+                   
+             end
       else
-         return kong_error_handlers(ngx)
-   end
+
+          return kong_error_handlers(ngx)
+      end
+  -- else
+  --    ngx.log(ngx.CRIT, '跳转=') 
+  -- end
+
  
 end
 
