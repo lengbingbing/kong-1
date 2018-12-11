@@ -212,31 +212,34 @@ server {
         uninitialized_variable_warn off;
         resolver 8.8.8.8;
         content_by_lua_block {
-            ngx.log(ngx.CRIT, 'kong_error_handler--------------------') 
             Kong.handle_error()
         }
 
 
     }
 
-    location = /fallback_dispose {
-       
-        content_by_lua_block {
-             local openapi_error_handlers = require "kong.openapi.ErrorHandlers"
-             openapi_error_handlers.fallback_dispose()
-        }
-    }
-
-   
 
     location = /openapi/cocurrent {
-        internal;
-        uninitialized_variable_warn off;
+       
+ 
         resolver 8.8.8.8;
         content_by_lua_block {
             Kong.writeData()
+         }
     }
 
+    location = /openapi/error {
+       
+ 
+        resolver 8.8.8.8;
+        content_by_lua_block {
+            
+
+            Kong.writeError()
+        }
+        log_by_lua_block {
+            Kong.log()
+        }
 
 
     }

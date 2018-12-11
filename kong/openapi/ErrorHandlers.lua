@@ -178,20 +178,24 @@ function ErrorHandlers.buildJumpParms()
                         utils.writeErrorHandlerLog("key------------ "..key)
                         local cache_data = ngx.shared["static_config_cache"]:get(key);
                         if cache_data ~= nil then
-                                
-                                local request_body = json_decode(cache_data)
 
-                                ngx.var.fault = "true"
+                                local request_body = json_decode(cache_data)
+                                utils.writeErrorHandlerLog("有数据 request_body.trafficFail="..request_body.trafficFail)
+                                ngx.var.fault = "true"                
                                 ngx.var.fault_strategy = request_body.trafficFail
                                 ngx.header["fault"]= ngx.var.fault
-                                ngx.header["fault_strategy"]=ngx.var.fault_strategy
+                                ngx.header["fault_strategy"]= ngx.var.fault_strategy
+                                Kong = require 'kong'
+                                Kong.customLog()
                                 --返回源码
-                                if(request_body.trafficFail==1) then
-                                    jump_url = '/fallback_dispose?optype=1&upstreamurl='..upstream_url..'&status='..status
+                                if(request_body.trafficFail==1 or request_body.trafficFail=="1") then
+                                    -- jump_url = '/fallback_dispose?optype=1&upstreamurl='..upstream_url..'&status='..status
+                                    -- utils.writeErrorHandlerLog( "jump_url------------ "..jump_url)
+
                                     return false,nil
                                 end
                                 -- 缓存数据
-                                if(request_body.trafficFail==2) then
+                                if(request_body.trafficFail==2 or request_body.trafficFail=="2") then
                                    
                                     local cachename = utils.getCacheName(host,request_uri)
                                     local cache = open_api_cache:new();
@@ -208,20 +212,23 @@ function ErrorHandlers.buildJumpParms()
                                     if(res==false) then
                                         return false,nil
                                     else
-                                        jump_url = '/fallback_dispose?name='..cachename..'&optype=2&key='..key..'&uri='..uri..'&status='..status..'&cache=true&bottom=false&upstreamurl='..upstream_url
+                                        -- jump_url = '/fallback_dispose?name='..cachename..'&optype=2&key='..key..'&uri='..uri..'&status='..status..'&cache=true&bottom=false&upstreamurl='..upstream_url
+                                        jump_url = '/openapi/error?name='..cachename..'&optype=2&uri='..uri
                                         return true,jump_url
                                     end
 
                                 end
                                 -- 托底
-                                if(request_body.trafficFail==3) then
+                                if(request_body.trafficFail==3 or request_body.trafficFail=="3") then
                                     -- ngx.say(request_body.bottomJson)
                                     local cachename = utils.getCacheName(host,request_uri)
-                                    jump_url = '/fallback_dispose?key='..key..'&optype=3'..'&status='..status..'&cache=false&bottom=true&upstreamurl='..upstream_url
+                                    -- jump_url = '/fallback_dispose?key='..key..'&optype=3'..'&status='..status..'&cache=false&bottom=true&upstreamurl='..upstream_url
+
+                                    jump_url = '/openapi/error?bottomJson='..request_body.bottomJson..'&optype=3'
                                     return true,jump_url
                                 end
                       
-                                if(request_body.trafficFail==4) then
+                                if(request_body.trafficFail==4 or request_body.trafficFail=="4") then
                                     
                                     local cachename = utils.getCacheName(host,request_uri)
                                     local cache = open_api_cache:new();
@@ -229,12 +236,14 @@ function ErrorHandlers.buildJumpParms()
                                     local res =  cache:read(uri,cachename)
                                     if(res==false or data==nill) then
                                            
-                                            jump_url = '/fallback_dispose?key='..key..'&optype=3'..'&status='..status..'&cache=false&bottom=true&upstreamurl='..upstream_url
+                                            -- jump_url = '/fallback_dispose?key='..key..'&optype=3'..'&status='..status..'&cache=false&bottom=true&upstreamurl='..upstream_url
+                                            jump_url = '/openapi/error?bottomJson='..request_body.bottomJson..'&optype=3'
                                             return true,jump_url
                                     else
 
 
-                                            jump_url = '/fallback_dispose?name='..cachename..'&optype=2&key='..key..'&uri='..uri..'&status='..status..'&cache=true&bottom=false&upstreamurl='..upstream_url
+                                            -- jump_url = '/fallback_dispose?name='..cachename..'&optype=2&key='..key..'&uri='..uri..'&status='..status..'&cache=true&bottom=false&upstreamurl='..upstream_url
+                                            jump_url = '/openapi/error?name='..cachename..'&optype=2&uri='..uri
                                             return true,jump_url
                                     end
                          

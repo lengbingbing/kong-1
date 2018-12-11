@@ -570,14 +570,47 @@ function Kong.writeData()
             end
             
      end
-     --托底
+     --托底  writeError
+     if optype =='3' then
+        ngx.say(bottomJson)
+     end
+end
+function Kong.writeError()
+     
+     ngx.log(ngx.CRIT,  " /openapi/error------------ ")    
+     local request_args_tab = ngx.req.get_uri_args()
+     local optype = request_args_tab.optype
+     local bottomJson = request_args_tab.bottomJson
+     local name = request_args_tab.name
+     local uri = request_args_tab.uri
+
+     ngx.var.fault = "true"                
+     ngx.var.fault_strategy = optype
+     ngx.header["fault"]= ngx.var.fault
+     ngx.header["fault_strategy"]= ngx.var.fault_strategy
+
+     if optype =='2'  then
+            local cache = open_api_cache:new();
+            local res =  cache:read(uri,name)
+           
+            if(res==false) then
+                 
+                 return ngx.exit(status)
+            else
+                --读取到缓存数据
+                for key, value in pairs(res) do  
+                ngx.say(value)
+                end 
+                return ngx.exit(200)
+            end
+            
+     end
+     --托底  writeError
      if optype =='3' then
         ngx.say(bottomJson)
      end
 
 
-  
-     
 end
 
 function Kong.handle_error()
@@ -585,10 +618,12 @@ function Kong.handle_error()
   if not ngx.ctx.plugins_for_request then
     for plugin, plugin_conf in plugins_iterator(loaded_plugins, true) do
       -- just build list of plugins
+
     end
   end
   local res, jump_url = openapi_error_handlers.buildJumpParms()
   if res then
+        ngx.log(ngx.CRIT, '跳转='..jump_url) 
         return ngx.redirect(jump_url) 
       else
          return kong_error_handlers(ngx)
