@@ -14,11 +14,18 @@ function _M.serialize(ngx)
   end
 
   local request_uri = ngx.var.request_uri or ""
-
+  local no_arg_uri = nil
+  local path_index = string.find(request_uri,'?')
+  if(path_index~=nil) then
+     no_arg_uri =  string.sub(request_uri,1,path_index-1)
+  else
+     no_arg_uri = request_uri
+  end
+  
   return {
     request = {
       uri = request_uri,
-      url = ngx.var.scheme .. "://" .. ngx.var.host .. ":" .. ngx.var.server_port .. request_uri,
+      url = ngx.var.scheme .. "://" .. ngx.var.host .. no_arg_uri,
       querystring = ngx.req.get_uri_args(), -- parameters, as a table
       method = ngx.req.get_method(), -- http method
       headers = ngx.req.get_headers(),

@@ -52,6 +52,8 @@ lua_socket_pool_size ${{LUA_SOCKET_POOL_SIZE}};
 lua_max_running_timers 4096;
 lua_max_pending_timers 16384;
 lua_shared_dict kong                5m;
+lua_shared_dict prometheus_metrics  5m;
+
 lua_shared_dict kong_db_cache       ${{MEM_CACHE_SIZE}};
 lua_shared_dict kong_db_cache_miss 12m;
 lua_shared_dict kong_locks          8m;
@@ -61,7 +63,7 @@ lua_shared_dict kong_healthchecks   5m;
 lua_shared_dict kong_rate_limiting_counters 12m;
 > if database == "cassandra" then
 lua_shared_dict kong_cassandra      5m;
-lua_shared_dict static_config_cache 100m;
+
 lua_shared_dict static_cache 300m;
 lua_shared_dict my_limit_req_store 100m;
 > end
@@ -243,7 +245,10 @@ server {
 
 
     }
-   
+    location = /favicon.ico {
+                log_not_found off;
+                access_log off;
+        }
 }
 > end
 

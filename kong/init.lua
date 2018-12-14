@@ -228,9 +228,7 @@ function Kong.init_worker()
   -- seeds.
   math.randomseed()
 
-  local config = require("kong.openapi.Config");
-  config:new()
-  config:loadConfig()
+
 
   -- init DAO
 
@@ -541,6 +539,9 @@ end
 function Kong.customLog()
     
       for plugin, plugin_conf in plugins_iterator(loaded_plugins, true) do
+          -- if plugin.name =='tcp-log' then
+              
+          -- end
           plugin.handler:log(plugin_conf)
       end
   
@@ -577,7 +578,7 @@ function Kong.writeData()
 end
 function Kong.writeError()
      
-     ngx.log(ngx.CRIT,  " /openapi/error------------ ")    
+       
      local request_args_tab = ngx.req.get_uri_args()
      local optype = request_args_tab.optype
      local bottomJson = request_args_tab.bottomJson
