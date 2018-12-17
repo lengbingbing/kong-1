@@ -18,7 +18,7 @@ local utils = require "kong.openapi.Utils"
 local CacheHandler = BasePlugin:extend()
 
 
-CacheHandler.PRIORITY = 5000
+CacheHandler.PRIORITY = 9999
 CacheHandler.VERSION = "0.1.0"
 
 

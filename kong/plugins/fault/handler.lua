@@ -20,7 +20,7 @@ local utils = require "kong.openapi.Utils"
 local FaultHandler = BasePlugin:extend()
 
 
-FaultHandler.PRIORITY = 6000
+FaultHandler.PRIORITY = 9998
 FaultHandler.VERSION = "0.1.0"
 
 
@@ -61,7 +61,7 @@ function FaultHandler:access(config)
                 -- Eventually, execute the parent implementation
                 -- (will log that your plugin is entering this context)
 
-         FaultHandler.super.access(self)
+      ngx.var.fault_enabled="true"
 
 
 end

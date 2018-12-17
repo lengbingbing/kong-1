@@ -3,7 +3,11 @@ local tablex = require "pl.tablex"
 local _M = {}
 
 local EMPTY = tablex.readonly({})
-
+function getTimeStamp(t)
+    
+    return os.date("!%Y-%m-%dT%H:%M:%S", t)
+     
+end
 function _M.serialize(ngx)
   local authenticated_entity
   if ngx.ctx.authenticated_credential ~= nil then
@@ -21,7 +25,25 @@ function _M.serialize(ngx)
   else
      no_arg_uri = request_uri
   end
-  
+
+  local response_status = ngx.status 
+  if ngx.var.cocurrent == 'true' then
+     if  ngx.var.cocurrent_strategy=='1' or  ngx.var.cocurrent_strategy=='2' then
+         response_status = 504 
+
+     end
+     if  ngx.var.cocurrent_strategy=='3' or ngx.var.cocurrent_strategy=='4' then
+         response_status = 200 
+
+     end
+  end
+  if ngx.var.cache== 'true' then
+     response_status = 200 
+  end
+
+
+
+
   return {
     request = {
       uri = request_uri,
@@ -33,7 +55,7 @@ function _M.serialize(ngx)
     },
     upstream_uri = ngx.var.upstream_uri,
     response = {
-      status = ngx.status,
+      status = response_status,
       headers = ngx.resp.get_headers(),
       size = ngx.var.bytes_sent
     },
@@ -66,7 +88,8 @@ function _M.serialize(ngx)
     api = ngx.ctx.api,
     consumer = ngx.ctx.authenticated_consumer,
     client_ip = ngx.var.remote_addr,
-    started_at = ngx.req.start_time() * 1000
+    started_at = ngx.req.start_time() * 1000,
+    started_at_date = getTimeStamp(ngx.req.start_time())
   }
 end
 

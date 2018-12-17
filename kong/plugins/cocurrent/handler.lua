@@ -19,7 +19,7 @@ local utils = require "kong.openapi.Utils"
 local CocurrentHandler = BasePlugin:extend()
 
 
-CocurrentHandler.PRIORITY = 5001
+CocurrentHandler.PRIORITY = 9997
 CocurrentHandler.VERSION = "0.1.0"
 
 
@@ -87,6 +87,12 @@ function buildJumpParms(strategy,body,status)
             local key = 'uc/openapi/config/upstreamurl/'..child_key
             if(strategy==1) then
                 -- jump_url = '/outputdata?optype=1'..'&status='..status..'&upstreamurl='..upstream_url
+
+
+                if ngx.var.fault_enabled~="true" then  
+                            Kong = require 'kong'
+                            Kong.customLog()
+                end
                 return false,nil
                             -- return false,nil
             end
@@ -97,15 +103,28 @@ function buildJumpParms(strategy,body,status)
                     local data = ngx.shared["static_cache"]:get(cachename)
                     -- 判断缓存是否过期
                     if data == nill then 
-                        ngx.log(ngx.CRIT, "cachename------------过期 ")    
+                        ngx.log(ngx.CRIT, "cachename------------过期 ")  
+
+                        if ngx.var.fault_enabled~="true" then  
+                            Kong = require 'kong'
+                            Kong.customLog()
+                        end
                         return false,nil
                     end
                     local cache = open_api_cache:new();
                     local res =  cache:read(uri,cachename)
                     if(res==false) then
+
+
+                        if ngx.var.fault_enabled~="true" then  
+                            Kong = require 'kong'
+                            Kong.customLog()
+                        end
                         ngx.log(ngx.CRIT, "没有缓存文件------------过期 cachename="..cachename)    
                        return false,nil
                     else
+                       ngx.var.cache="true"
+                       ngx.header["cache"]=ngx.var.cache
                        jump_url = '/openapi/cocurrent?name='..cachename..'&optype=2&uri='..uri
                        return true,jump_url
                    end
@@ -113,7 +132,7 @@ function buildJumpParms(strategy,body,status)
            end
            -- 托底
            if(strategy==3) then
-                
+
                 jump_url = '/openapi/cocurrent?bottomJson='..body..'&optype=3'
                 return true,jump_url
             end
@@ -133,6 +152,8 @@ function buildJumpParms(strategy,body,status)
                          jump_url = '/openapi/cocurrent?bottomJson='..body..'&optype=3'
                          return true,jump_url
                 else
+                         ngx.var.cache="true"
+                         ngx.header["cache"]=ngx.var.cache
                          jump_url = '/openapi/cocurrent?name='..cachename..'&optype=2&uri='..uri
                          return true,jump_url
                 end

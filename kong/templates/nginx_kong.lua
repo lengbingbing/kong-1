@@ -172,7 +172,7 @@ server {
         set $cache_percentage '';
         set $fault '';
         set $fault_strategy '';
-
+        set $fault_enabled '';
 
         access_by_lua_block {
 

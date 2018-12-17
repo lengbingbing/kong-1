@@ -478,8 +478,10 @@ return {
       ctx.KONG_ACCESS_START = get_now()
 
       local match_t = router.exec(ngx)
+
       if not match_t then
         match_t = api_router.exec(ngx)
+
         if not match_t then
              return responses.send_HTTP_NOT_FOUND("no route and no API found with those values")
  

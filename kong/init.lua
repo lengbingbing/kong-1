@@ -647,7 +647,7 @@ function Kong.handle_error()
                    
              end
       else
-
+          Kong.customLog()
           return kong_error_handlers(ngx)
       end
   -- else
