@@ -73,6 +73,10 @@ local function getIP()
 end
 
 
+                        -- if ngx.var.fault_enabled~="true" then  
+                        --     Kong = require 'kong'
+                        --     Kong.customLog()
+                        -- end
 -- @strategy: 并发处理策略
 -- @bottomJson: 托底数据
 -- @status: z状态
@@ -88,11 +92,6 @@ function buildJumpParms(strategy,body,status)
             if(strategy==1) then
                 -- jump_url = '/outputdata?optype=1'..'&status='..status..'&upstreamurl='..upstream_url
 
-
-                if ngx.var.fault_enabled~="true" then  
-                            Kong = require 'kong'
-                            Kong.customLog()
-                end
                 return false,nil
                             -- return false,nil
             end
@@ -105,10 +104,7 @@ function buildJumpParms(strategy,body,status)
                     if data == nill then 
                         ngx.log(ngx.CRIT, "cachename------------过期 ")  
 
-                        if ngx.var.fault_enabled~="true" then  
-                            Kong = require 'kong'
-                            Kong.customLog()
-                        end
+                       
                         return false,nil
                     end
                     local cache = open_api_cache:new();
@@ -116,10 +112,6 @@ function buildJumpParms(strategy,body,status)
                     if(res==false) then
 
 
-                        if ngx.var.fault_enabled~="true" then  
-                            Kong = require 'kong'
-                            Kong.customLog()
-                        end
                         ngx.log(ngx.CRIT, "没有缓存文件------------过期 cachename="..cachename)    
                        return false,nil
                     else
