@@ -9,13 +9,18 @@ function getTimeStamp(t)
      
 end
 function _M.serialize(ngx)
+  local ctx = ngx.ctx
+  local var = ngx.var
+  local req = ngx.req
+
   local authenticated_entity
-  if ngx.ctx.authenticated_credential ~= nil then
+  if ctx.authenticated_credential ~= nil then
     authenticated_entity = {
-      id = ngx.ctx.authenticated_credential.id,
-      consumer_id = ngx.ctx.authenticated_credential.consumer_id
+      id = ctx.authenticated_credential.id,
+      consumer_id = ctx.authenticated_credential.consumer_id
     }
   end
+
 
   local request_uri = ngx.var.request_uri or ""
   local no_arg_uri = nil
@@ -44,29 +49,32 @@ function _M.serialize(ngx)
 
 
 
+
   return {
     request = {
       uri = request_uri,
+
       url = ngx.var.scheme .. "://" .. ngx.var.host .. no_arg_uri,
       querystring = ngx.req.get_uri_args(), -- parameters, as a table
       method = ngx.req.get_method(), -- http method
       headers = ngx.req.get_headers(),
       size = ngx.var.request_length
+
     },
-    upstream_uri = ngx.var.upstream_uri,
+    upstream_uri = var.upstream_uri,
     response = {
       status = response_status,
       headers = ngx.resp.get_headers(),
-      size = ngx.var.bytes_sent
+      size = var.bytes_sent
     },
-    tries = (ngx.ctx.balancer_data or EMPTY).tries,
+    tries = (ctx.balancer_data or EMPTY).tries,
     latencies = {
-      kong = (ngx.ctx.KONG_ACCESS_TIME or 0) +
-             (ngx.ctx.KONG_RECEIVE_TIME or 0) +
-             (ngx.ctx.KONG_REWRITE_TIME or 0) +
-             (ngx.ctx.KONG_BALANCER_TIME or 0),
-      proxy = ngx.ctx.KONG_WAITING_TIME or -1,
-      request = ngx.var.request_time * 1000
+      kong = (ctx.KONG_ACCESS_TIME or 0) +
+             (ctx.KONG_RECEIVE_TIME or 0) +
+             (ctx.KONG_REWRITE_TIME or 0) +
+             (ctx.KONG_BALANCER_TIME or 0),
+      proxy = ctx.KONG_WAITING_TIME or -1,
+      request = var.request_time * 1000
     },
     openapi={
 
@@ -83,6 +91,7 @@ function _M.serialize(ngx)
 
     },
     authenticated_entity = authenticated_entity,
+
     route = ngx.ctx.route,
     service = ngx.ctx.service,
     api = ngx.ctx.api,
@@ -90,6 +99,7 @@ function _M.serialize(ngx)
     client_ip = ngx.var.remote_addr,
     started_at = ngx.req.start_time() * 1000,
     started_at_date = getTimeStamp(ngx.req.start_time())
+
   }
 end
 

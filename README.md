@@ -1,6 +1,7 @@
 [![][kong-logo]][kong-url]
 
 [![Build Status][badge-travis-image]][badge-travis-url]
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Kong/kong/blob/master/LICENSE)
 
 Kong is a cloud-native, fast, scalable, and distributed Microservice
 Abstraction Layer *(also known as an API Gateway, API Middleware or in some
@@ -11,10 +12,10 @@ Actively maintained, Kong is widely used in production at companies ranging
 from startups to Global 5000 as well as government organizations.
 
 [Installation](https://konghq.com/install) |
-[Documentation](https://getkong.org/docs) |
+[Documentation](https://docs.konghq.com) |
 [Forum](https://discuss.konghq.com) |
 [Blog](https://konghq.com/blog) |
-IRC (freenode): [#kong](http://webchat.freenode.net/?channels=kong) |
+IRC (freenode): [#kong](https://webchat.freenode.net/?channels=kong) |
 [Nightly Builds][kong-nightly-master]
 
 ## Summary
@@ -28,9 +29,9 @@ IRC (freenode): [#kong](http://webchat.freenode.net/?channels=kong) |
 
 ## Why Kong?
 
-If you are building for web, mobile or IoT (Internet of Things) you will likely
-end up needing common functionality to run your actual software. Kong can
-help by acting as a gateway (or a sidecar) for microservices requests while
+If you are building for the web, mobile, or IoT (Internet of Things) you will
+likely end up needing common functionality to run your actual software. Kong
+can help by acting as a gateway (or a sidecar) for microservices requests while
 providing load balancing, logging, authentication, rate-limiting,
 transformations, and more through plugins.
 
@@ -79,8 +80,8 @@ transformations, and more through plugins.
 - **Plugins**: Extendable architecture for adding functionality to Kong and
   APIs.
 
-For more info about plugins, you can check out the [Plugins
-Hub](https://konghq.com/plugins/).
+For more info about plugins and integrations, you can check out the [Kong
+Hub](https://docs.konghq.com/hub/).
 
 ## Distributions
 
@@ -92,7 +93,7 @@ code, other repos are also under active development:
 - [Kong Packages](https://github.com/Kong/kong/releases): Pre-built packages
   for Debian, Red Hat, and OS X distributions (shipped with each release).
 - [Kong Vagrant](https://github.com/Kong/kong-vagrant): A Vagrantfile for
-  provisioning a development ready environment for Kong.
+  provisioning a development-ready environment for Kong.
 - [Kong Homebrew](https://github.com/Kong/homebrew-kong): Homebrew Formula
   for Kong.
 - [Kong CloudFormation](https://github.com/Kong/kong-dist-cloudformation):
@@ -105,6 +106,8 @@ code, other repos are also under active development:
   Heroku in one click.
 - [Kong and Instaclustr](https://www.instaclustr.com/solutions/managed-cassandra-for-kong/): Let
   Instaclustr manage your Cassandra cluster.
+- [Kubernetes Ingress Controller for Kong](https://github.com/Kong/kubernetes-ingress-controller):
+  Use Kong for Kubernetes Ingress.
 - [Nightly Builds][kong-nightly-master]: Builds of the master branch available
   every morning at about 9AM PST.
 
@@ -114,9 +117,9 @@ If you are planning on developing on Kong, you'll need a development
 installation. The `next` branch holds the latest unreleased source code.
 
 You can read more about writing your own plugins in the [Plugin Development
-Guide](https://getkong.org/docs/latest/plugin-development/), or browse an
-online version of Kong's source code documentation in the [Public Lua API
-Reference](https://getkong.org/docs/latest/lua-reference/).
+Guide](https://docs.konghq.com/latest/plugin-development/), or browse an
+online version of Kong's source code documentation in the [Plugin Development
+Kit (PDK) Reference](https://docs.konghq.com/latest/pdk/).
 
 #### Vagrant
 
@@ -128,7 +131,7 @@ You can use a Vagrant box running Kong and Postgres that you can find at
 Kong mostly is an OpenResty application made of Lua source files, but also
 requires some additional third-party dependencies. We recommend installing
 those by following the source install instructions at
-https://getkong.org/install/source/.
+https://docs.konghq.com/install/source/.
 
 Instead of following the second step (Install Kong), clone this repository
 and install the latest Lua sources instead of the currently released ones:
@@ -256,4 +259,3 @@ limitations under the License.
 
 [busted]: https://github.com/Olivine-Labs/busted
 [luacheck]: https://github.com/mpeterv/luacheck
-
