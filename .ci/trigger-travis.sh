@@ -12,7 +12,7 @@
 #
 # where TRAVIS_ACCESS_TOKEN is, or ~/private/.travis-access-token contains,
 # the Travis access token.  Your Travis access token is the text after
-# "Your access token is " in the ouput of these commands:
+# "Your access token is " in the output of these commands:
 #   travis login && travis token
 # (If the travis program isn't installed, do so with one of these two commands:
 #    gem install travis
@@ -109,6 +109,8 @@ body="{
         \"BUILD_RELEASE=true PLATFORM=ubuntu:12.04.5 $NIGHTLY $VERSION\",
         \"BUILD_RELEASE=true PLATFORM=ubuntu:14.04.2 $NIGHTLY $VERSION\",
         \"BUILD_RELEASE=true PLATFORM=ubuntu:16.04 $NIGHTLY $VERSION\",
+        \"BUILD_RELEASE=true PLATFORM=ubuntu:17.04 $NIGHTLY $VERSION\",
+        \"BUILD_RELEASE=true PLATFORM=ubuntu:18.04 $NIGHTLY $VERSION\",
         \"BUILD_RELEASE=true PLATFORM=rhel:6 $NIGHTLY $VERSION\",
         \"BUILD_RELEASE=true PLATFORM=rhel:7 $NIGHTLY $VERSION\",
         \"BUILD_RELEASE=true PLATFORM=amazonlinux $NIGHTLY $VERSION\",
