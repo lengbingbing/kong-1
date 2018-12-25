@@ -27,31 +27,6 @@ return function(options)
 
 
 
-  do -- deal with ffi re-loading issues
-
-    if options.rbusted then
-      -- pre-load the ffi module, such that it becomes part of the environment
-      -- and Busted will not try to GC and reload it. The ffi is not suited
-      -- for that and will occasionally segfault if done so.
-      local ffi = require "ffi"
-
-      -- Now patch ffi.cdef to only be called once with each definition
-      local old_cdef = ffi.cdef
-      local exists = {}
-      ffi.cdef = function(def)
-        if exists[def] then
-          return
-        end
-        exists[def] = true
-        return old_cdef(def)
-      end
-
-    end
-
-  end
-
-
-
   do -- implement `sleep` in the `init_worker` context
 
     -- initialization code regularly uses the shm and locks.
@@ -203,7 +178,7 @@ return function(options)
     -- one. This is to enforce best-practices for seeding in ngx_lua,
     -- and prevents third-party modules from overriding our correct seed
     -- (many modules make a wrong usage of `math.randomseed()` by calling
-    -- it multiple times or by not useing unique seeds for Nginx workers).
+    -- it multiple times or by not using unique seeds for Nginx workers).
     --
     -- This patched method will create a unique seed per worker process,
     -- using a combination of both time and the worker's pid.
@@ -214,9 +189,11 @@ return function(options)
     _G.math.randomseed = function()
       local seed = seeds[ngx.worker.pid()]
       if not seed then
-        if not options.cli and ngx.get_phase() ~= "init_worker" then
+        if not options.cli
+          and (ngx.get_phase() ~= "init_worker" and ngx.get_phase() ~= "init")
+        then
           ngx.log(ngx.WARN, debug.traceback("math.randomseed() must be " ..
-              "called in init_worker context", 2))
+              "called in init or init_worker context", 2))
         end
 
         local bytes, err = util.get_rand_bytes(8)
@@ -296,7 +273,7 @@ return function(options)
         return first
       end
     end
-  
+
     local function resolve_connect(f, sock, host, port, opts)
       if sub(host, 1, 5) ~= "unix:" then
         host, port = toip(host, port)
