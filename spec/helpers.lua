@@ -1,7 +1,7 @@
 ------------------------------------------------------------------
 -- Collection of utilities to help testing Kong features and plugins.
 --
--- @copyright Copyright 2016-2018 Kong Inc. All rights reserved.
+-- @copyright Copyright 2016-2019 Kong Inc. All rights reserved.
 -- @license [Apache 2.0](https://opensource.org/licenses/Apache-2.0)
 -- @module spec.helpers
 
@@ -17,13 +17,14 @@ local MOCK_UPSTREAM_SSL_PORT = 15556
 local MOCK_UPSTREAM_STREAM_PORT = 15557
 local MOCK_UPSTREAM_STREAM_SSL_PORT = 15558
 
+require("resty.core")
+
 local consumers_schema_def = require "kong.db.schema.entities.consumers"
 local services_schema_def = require "kong.db.schema.entities.services"
 local plugins_schema_def = require "kong.db.schema.entities.plugins"
 local routes_schema_def = require "kong.db.schema.entities.routes"
-local apis_schema_def = require "kong.db.schema.entities.apis"
 local conf_loader = require "kong.conf_loader"
-local DAOFactory = require "kong.dao.factory"
+local kong_global = require "kong.global"
 local Blueprints = require "spec.fixtures.blueprints"
 local pl_stringx = require "pl.stringx"
 local pl_utils = require "pl.utils"
@@ -38,11 +39,6 @@ local http = require "resty.http"
 local nginx_signals = require "kong.cmd.utils.nginx_signals"
 local log = require "kong.cmd.utils.log"
 local DB = require "kong.db"
-
-
-local kong = {
-  table = require("kong.pdk.table").new()
-}
 
 
 log.set_lvl(log.levels.quiet) -- disable stdout logs in tests
@@ -105,12 +101,14 @@ end
 -- Conf and DAO
 ---------------
 local conf = assert(conf_loader(TEST_CONF_PATH))
+
+_G.kong = kong_global.new()
+kong_global.init_pdk(_G.kong, conf, nil) -- nil: latest PDK
+
 local db = assert(DB.new(conf))
 assert(db:init_connector())
-local dao = assert(DAOFactory.new(conf, db))
 db.plugins:load_plugin_schemas(conf.loaded_plugins)
-db.old_dao = dao
-local blueprints = assert(Blueprints.new(dao, db))
+local blueprints = assert(Blueprints.new(db))
 
 local each_strategy
 
@@ -144,7 +142,7 @@ do
   end
 end
 
-local function truncate_tables(db, dao, tables)
+local function truncate_tables(db, tables)
   if not tables then
     return
   end
@@ -152,8 +150,6 @@ local function truncate_tables(db, dao, tables)
   for _, t in ipairs(tables) do
     if db[t] and db[t].schema and not db[t].schema.legacy then
       db[t]:truncate()
-    else
-      dao:truncate_table(t)
     end
   end
 end
@@ -187,22 +183,16 @@ local function get_db_utils(strategy, tables, plugins)
     end
   end
 
-  -- new DAO (DB module)
+  -- DAO (DB module)
   local db = assert(DB.new(conf, strategy))
   assert(db:init_connector())
 
   bootstrap_database(db)
 
-  -- legacy DAO
-  local dao
-
   do
     local database = conf.database
     conf.database = strategy
-    dao = assert(DAOFactory.new(conf, db))
     conf.database = database
-
-    --assert(dao:run_migrations())
   end
 
   db:truncate("plugins")
@@ -211,16 +201,13 @@ local function get_db_utils(strategy, tables, plugins)
   -- cleanup new DB tables
   if not tables then
     assert(db:truncate())
-    dao:truncate_tables()
 
   else
-    truncate_tables(db, dao, tables)
+    truncate_tables(db, tables)
   end
 
-  db.old_dao = dao
-
   -- blueprints
-  local bp = assert(Blueprints.new(dao, db))
+  local bp = assert(Blueprints.new(db))
 
   if plugins then
     for _, plugin in ipairs(plugins) do
@@ -228,7 +215,7 @@ local function get_db_utils(strategy, tables, plugins)
     end
   end
 
-  return bp, db, dao
+  return bp, db
 end
 
 -----------------
@@ -1240,7 +1227,6 @@ end
 Schema.new(consumers_schema_def)
 Schema.new(services_schema_def)
 Schema.new(routes_schema_def)
-Schema.new(apis_schema_def)
 
 local plugins_schema = assert(Schema.new(plugins_schema_def))
 
@@ -1275,7 +1261,6 @@ return {
   utils = pl_utils,
 
   -- Kong testing properties
-  dao = dao,
   db = db,
   blueprints = blueprints,
   get_db_utils = get_db_utils,
@@ -1334,7 +1319,7 @@ return {
     local ok, err = prepare_prefix(env.prefix)
     if not ok then return nil, err end
 
-    truncate_tables(db, dao, tables)
+    truncate_tables(db, tables)
 
     local nginx_conf = ""
     if env.nginx_conf then

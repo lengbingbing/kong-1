@@ -657,12 +657,11 @@ describe("Admin API (#" .. strategy .. "): ", function()
             assert.same({
               code = Errors.codes.UNIQUE_VIOLATION,
               name = "unique constraint violation",
-              message = [[UNIQUE violation detected on '{consumer={id="]] ..
-                        consumer.id .. [["},api=null,service=null,]] ..
-                        [[name="rewriter",route=null}']],
+              message = [[UNIQUE violation detected on '{service=null,]] ..
+                        [[name="rewriter",route=null,consumer={id="]] ..
+                        consumer.id .. [["}}']],
               fields = {
                 name = "rewriter",
-                api = ngx.null,
                 consumer = {
                   id = consumer.id,
                 },
@@ -711,7 +710,7 @@ describe("Admin API (#" .. strategy .. "): ", function()
 
       it("retrieves by id", function()
         local consumer = bp.consumers:insert()
-        local plugin = bp.rewriter_plugins:insert({ consumer = { id = consumer.id }})
+        local plugin = bp.rewriter_plugins:insert({ consumer = { id = consumer.id }}, { nulls = true })
 
         local res = assert(client:send {
           method = "GET",
@@ -723,7 +722,7 @@ describe("Admin API (#" .. strategy .. "): ", function()
       end)
       it("retrieves by consumer id when it has spaces", function()
         local consumer = bp.consumers:insert()
-        local plugin = bp.rewriter_plugins:insert({ consumer = { id = consumer.id }})
+        local plugin = bp.rewriter_plugins:insert({ consumer = { id = consumer.id }}, { nulls = true })
 
         local res = assert(client:send {
           method = "GET",
@@ -810,7 +809,6 @@ describe("Admin API (#" .. strategy .. "): ", function()
             { id = plugin.id },
             {
               name = "rewriter",
-              api = plugin.api,
               route = plugin.route,
               service = plugin.service,
               consumer = plugin.consumer,

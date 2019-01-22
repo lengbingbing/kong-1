@@ -70,10 +70,8 @@ local openssl_pkey = require "openssl.pkey"
 local openssl_x509 = require "openssl.x509"
 local runloop = require "kong.runloop.handler"
 local mesh = require "kong.runloop.mesh"
-local responses = require "kong.tools.responses"
 local semaphore = require "ngx.semaphore"
 local singletons = require "kong.singletons"
-local DAOFactory = require "kong.dao.factory"
 local kong_cache = require "kong.cache"
 local ngx_balancer = require "ngx.balancer"
 local kong_resty_ctx = require "kong.resty.ctx"
@@ -123,7 +121,7 @@ local schema_state
 local function build_plugins_map(db, version)
   local map = {}
 
-  for plugin, err in db.plugins:each() do
+  for plugin, err in db.plugins:each(1000) do
     if err then
       return nil, err
     end
@@ -221,6 +219,20 @@ local function sort_plugins_for_execution(kong_conf, db, plugin_list)
 end
 
 
+local function flush_delayed_response(ctx)
+  ctx.delay_response = false
+
+  if type(ctx.delayed_response_callback) == "function" then
+    ctx.delayed_response_callback(ctx)
+    return -- avoid tail call
+  end
+
+  kong.response.exit(ctx.delayed_response.status_code,
+                     ctx.delayed_response.content,
+                     ctx.delayed_response.headers)
+end
+
+
 function Kong.init()
   -- special math.randomseed from kong.globalpatches not taking any argument.
   -- Must only be called in the init or init_worker phases, to avoid
@@ -229,8 +241,6 @@ function Kong.init()
 
   local pl_path = require "pl.path"
   local conf_loader = require "kong.conf_loader"
-  local ip = require "kong.tools.ip"
-
 
   -- check if kong global is the correct one
   if not kong.version then
@@ -279,22 +289,11 @@ function Kong.init()
   end
   --]]
 
-  local dao = assert(DAOFactory.new(config, db)) -- instantiate long-lived DAO
-  local ok, err_t = dao:init()
-  if not ok then
-    error(tostring(err_t))
-  end
-
-  --assert(dao:are_migrations_uptodate())
-
-  db.old_dao = dao
-
+  assert(db:connect())
   assert(db.plugins:check_db_against_config(config.loaded_plugins))
 
   -- LEGACY
-  singletons.ip = ip.init(config)
   singletons.dns = dns(config)
-  singletons.dao = dao
   singletons.configuration = config
   singletons.db = db
   -- /LEGACY
@@ -331,7 +330,6 @@ function Kong.init()
     singletons.origins = origins
   end
 
-  kong.dao = dao
   kong.db = db
   kong.dns = singletons.dns
   kong.default_client_ssl_ctx = default_client_ssl_ctx
@@ -347,12 +345,10 @@ function Kong.init()
   sort_plugins_for_execution(config, db, loaded_plugins)
 
   local err
-  plugins_map_semaphore, err = semaphore.new()
+  plugins_map_semaphore, err = semaphore.new(1) -- 1 = treat this as a mutex
   if not plugins_map_semaphore then
     error("failed to create plugins map semaphore: " .. err)
   end
-
-  plugins_map_semaphore:post(1) -- one resource, treat this as a mutex
 
   local _, err = build_plugins_map(db, "init")
   if err then
@@ -360,7 +356,8 @@ function Kong.init()
   end
 
   assert(runloop.build_router(db, "init"))
-  assert(runloop.build_api_router(dao, "init"))
+
+  db:close()
 end
 
 
@@ -393,16 +390,6 @@ function Kong.init_worker()
   local ok, err = kong.db:init_worker()
   if not ok then
     ngx_log(ngx_CRIT, "could not init DB: ", err)
-    return
-  end
-
-
-  -- init DAO
-
-
-  local ok, err = kong.dao:init_worker()
-  if not ok then
-    ngx_log(ngx_CRIT, "could not init DAO: ", err)
     return
   end
 
@@ -482,14 +469,6 @@ function Kong.init_worker()
     return
   end
 
-  local ok, err = cache:get("api_router:version", { ttl = 0 }, function()
-    return "init"
-  end)
-  if not ok then
-    ngx_log(ngx_CRIT, "could not set API router version in cache: ", err)
-    return
-  end
-
   local ok, err = cache:get("plugins_map:version", { ttl = 0 }, function()
     return "init"
   end)
@@ -511,7 +490,6 @@ function Kong.init_worker()
   kong.cluster_events = cluster_events
 
   kong.db:set_events_handler(worker_events)
-  kong.dao:set_events_handler(worker_events)
 
 
   runloop.init_worker.before()
@@ -524,6 +502,8 @@ function Kong.init_worker()
     kong_global.set_namespaced_log(kong, plugin.name)
 
     plugin.handler:init_worker()
+
+    kong_global.reset_log(kong)
   end
 end
 
@@ -656,11 +636,11 @@ function Kong.rewrite()
   local ok, err = plugins_map_wrapper()
   if not ok then
     ngx_log(ngx_CRIT, "could not ensure plugins map is up to date: ", err)
-    return responses.send_HTTP_INTERNAL_SERVER_ERROR()
+    return kong.response.exit(500, { message  = "An unexpected error occurred" })
   end
 
   -- we're just using the iterator, as in this rewrite phase no consumer nor
-  -- api will have been identified, hence we'll just be executing the global
+  -- route will have been identified, hence we'll just be executing the global
   -- plugins
   for plugin, plugin_conf in plugins_iterator(ctx, loaded_plugins,
                                               configured_plugins, true) do
@@ -722,13 +702,14 @@ function Kong.access()
 
       if err then
         ctx.delay_response = false
-        return responses.send_HTTP_INTERNAL_SERVER_ERROR(err)
+        kong.log.err(err)
+        return kong.response.exit(500, { message  = "An unexpected error occurred" })
       end
     end
   end
 
   if ctx.delayed_response then
-    return responses.flush_delayed_response(ctx)
+    return flush_delayed_response(ctx)
   end
 
   ctx.delay_response = false

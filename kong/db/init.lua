@@ -6,7 +6,6 @@ local MetaSchema   = require "kong.db.schema.metaschema"
 local log          = require "kong.cmd.utils.log"
 
 
-
 local fmt          = string.format
 local type         = type
 local pairs        = pairs
@@ -29,7 +28,6 @@ local CORE_ENTITIES = {
   "snis",
   "upstreams",
   "targets",
-  "apis",
   "plugins",
   "cluster_ca",
 }
@@ -234,8 +232,9 @@ end
 
 
 do
-  local public = require "kong.tools.public"
   local resty_lock = require "resty.lock"
+  local knode = (kong and kong.node) and kong.node or
+                require "kong.pdk.node".new()
 
 
   local MAX_LOCK_WAIT_STEP = 2 -- seconds
@@ -302,10 +301,11 @@ do
     if not owner then
       -- generate a random string for this worker (resty-cli or runtime nginx
       -- worker)
-      -- we use the `get_node_id()` public utility, but in the CLI context,
-      -- this value is ephemeral, so no assumptions should be made about the
-      -- real owner of a lock
-      local id, err = public.get_node_id()
+      --
+      -- we use the `node.get_id()` from pdk, but in the CLI context, this
+      -- value is ephemeral, so no assumptions should be made about the real
+      -- owner of a lock
+      local id, err = knode.get_id()
       if not id then
         return nil, prefix_err(self, "failed to generate lock owner: " .. err)
       end
@@ -411,8 +411,37 @@ do
   local MigrationHelpers = require "kong.db.migrations.helpers"
   local MigrationsState = require "kong.db.migrations.state"
 
+
+  local last_schema_state
+
+
   function DB:schema_state()
-    return MigrationsState.load(self)
+    local err
+    last_schema_state, err = MigrationsState.load(self)
+    return last_schema_state, err
+  end
+
+
+  function DB:last_schema_state()
+    return last_schema_state or self:schema_state()
+  end
+
+
+  function DB:are_014_apis_present()
+    local ok, err = self.connector:connect_migrations({ no_keyspace = true })
+    if not ok then
+      return nil, prefix_err(self, err)
+    end
+
+    ok, err = self.connector:are_014_apis_present()
+
+    self.connector:close()
+
+    if err then
+      return nil, prefix_err(self, "failed checking for presence of 0.14 apis: " .. err)
+    end
+
+    return ok
   end
 
 

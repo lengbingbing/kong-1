@@ -30,7 +30,7 @@ function Plugins:check_db_against_config(plugin_set)
   local in_db_plugins = {}
   ngx_log(ngx_DEBUG, "Discovering used plugins")
 
-  for row, err in self:each() do
+  for row, err in self:each(1000) do
     if err then
       return nil, tostring(err)
     end
@@ -188,9 +188,6 @@ local function convert_legacy_schema(name, old_schema)
     insert(new_schema.fields.config.fields, new_field)
   end
 
-  if old_schema.no_api then
-    insert(new_schema.fields, { api = typedefs.no_api })
-  end
   if old_schema.no_route then
     insert(new_schema.fields, { route = typedefs.no_route })
   end
@@ -236,7 +233,15 @@ function Plugins:load_plugin_schemas(plugin_set)
 
     local err
 
-    if not schema.name then
+    if schema.name then
+      local err_t
+      ok, err_t = MetaSchema.MetaSubSchema:validate(schema)
+      if not ok then
+        kong.log.warn("schema for plugin '", plugin, "' is invalid: ",
+                      tostring(self.errors:schema_violation(err_t)))
+      end
+
+    else
       schema, err = convert_legacy_schema(plugin, schema)
       if err then
         return nil, "failed converting legacy schema for " ..
@@ -249,9 +254,6 @@ function Plugins:load_plugin_schemas(plugin_set)
       return nil, "error initializing schema for plugin: " .. err
     end
 
-    if schema.fields.api and schema.fields.api.eq == null then
-      plugin.no_api = true
-    end
     if schema.fields.consumer and schema.fields.consumer.eq == null then
       plugin.no_consumer = true
     end
@@ -310,6 +312,15 @@ end
 
 
 function Plugins:select_by_cache_key(key)
+  local schema_state = assert(self.db:last_schema_state())
+
+  -- if migration is complete, disable this translator function
+  -- and use the regular function
+  if schema_state:is_migration_executed("core", "001_14_to_15") then
+    self.select_by_cache_key = self.super.select_by_cache_key
+    Plugins.select_by_cache_key = nil
+    return self.super.select_by_cache_key(self, key)
+  end
 
   -- first try new way
   local entity, new_err = self.super.select_by_cache_key(self, key)
@@ -321,7 +332,8 @@ function Plugins:select_by_cache_key(key)
 
     -- if migration is complete, disable this translator function and return
     if schema_state:is_migration_executed("core", "001_14_to_15") then
-      Plugins.select_by_cache_key = self.super.select_by_cache_key
+      self.select_by_cache_key = self.super.select_by_cache_key
+      Plugins.select_by_cache_key = nil
       return entity
     end
   end

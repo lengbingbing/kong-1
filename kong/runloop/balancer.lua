@@ -111,7 +111,9 @@ do
   local function load_targets_into_memory(upstream_id)
     log(DEBUG, "fetching targets for upstream: ", tostring(upstream_id))
 
-    local target_history, err, err_t = singletons.db.targets:select_by_upstream_raw({ id = upstream_id })
+    local target_history, err, err_t =
+      singletons.db.targets:select_by_upstream_raw({ id = upstream_id }, 1000)
+
     if not target_history then
       return nil, err, err_t
     end
@@ -471,7 +473,7 @@ do
   -- and upstream entity tables as values, or nil+error
   local function load_upstreams_dict_into_memory()
     local upstreams_dict = {}
-    for up in singletons.db.upstreams:each() do
+    for up in singletons.db.upstreams:each(1000) do
     -- build a dictionary, indexed by the upstream name
       upstreams_dict[up.name] = up.id
     end

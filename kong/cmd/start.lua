@@ -2,7 +2,7 @@ local migrations_utils = require "kong.cmd.utils.migrations"
 local prefix_handler = require "kong.cmd.utils.prefix_handler"
 local nginx_signals = require "kong.cmd.utils.nginx_signals"
 local conf_loader = require "kong.conf_loader"
-local DAOFactory = require "kong.dao.factory"
+local kong_global = require "kong.global"
 local kill = require "kong.cmd.utils.kill"
 local log = require "kong.cmd.utils.log"
 local DB = require "kong.db"
@@ -23,13 +23,11 @@ local function execute(args)
   assert(not kill.is_running(conf.nginx_pid),
          "Kong is already running in " .. conf.prefix)
 
+  _G.kong = kong_global.new()
+  kong_global.init_pdk(_G.kong, conf, nil) -- nil: latest PDK
+
   local db = assert(DB.new(conf))
   assert(db:init_connector())
-  local dao = assert(DAOFactory.new(conf, db))
-  local ok, err_t = dao:init()
-  if not ok then
-    error(tostring(err_t))
-  end
 
   local schema_state = assert(db:schema_state())
 
